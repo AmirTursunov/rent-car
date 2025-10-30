@@ -3,6 +3,7 @@
 import React from "react";
 import { Play, Star, CheckCircle, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { redirect } from "next/navigation";
 
 const HeroSection = () => {
   const containerVariants = {
@@ -74,7 +75,10 @@ const HeroSection = () => {
             </motion.p>
 
             <motion.div variants={fadeVariant} className="flex flex-wrap gap-4">
-              <button className="group px-8 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-2xl hover:shadow-2xl hover:shadow-orange-500/50 transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
+              <button
+                onClick={() => redirect("/cars")}
+                className="group px-8 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-2xl hover:shadow-2xl hover:shadow-orange-500/50 transform hover:scale-105 transition-all duration-300 flex items-center gap-2"
+              >
                 Hozir boshlash
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>

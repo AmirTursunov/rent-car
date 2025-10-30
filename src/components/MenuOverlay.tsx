@@ -13,6 +13,7 @@ const navLinks = [
   { href: "/profile", label: "Profil" },
   { href: "/about", label: "Biz haqimizda" },
   { href: "/#contact", label: "Kontaktlar" },
+  { href: "/#category", label: "Kategoriyalar" },
 ];
 
 const navVariants = {
@@ -34,7 +35,13 @@ const navItemVariants = {
   }),
 };
 
-export default function MenuOverlay({ onClose, brandName }: { onClose: () => void, brandName: string }) {
+export default function MenuOverlay({
+  onClose,
+  brandName,
+}: {
+  onClose: () => void;
+  brandName: string;
+}) {
   const [imgIdx, setImgIdx] = useState(0);
   const router = useRouter();
   const pathname = usePathname();
@@ -59,21 +66,30 @@ export default function MenuOverlay({ onClose, brandName }: { onClose: () => voi
     e: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
     href: string
   ) => {
-    // In-page anchor like '/#contact'
+    e.preventDefault();
+
+    // Anchor link bo‘lsa, masalan "/#category"
     if (href.startsWith("/#")) {
-      e.preventDefault();
       const id = href.split("#")[1];
+
       if (pathname !== "/") {
-        router.push(href);
+        // Agar hozir boshqa sahifada bo‘lsa — oldin bosh sahifaga o‘t, keyin scroll qil
+        router.push(`/#${id}`);
+        setTimeout(() => {
+          const el = document.getElementById(id);
+          el?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 600); // sahifa render bo‘lishi uchun biroz kutamiz
       } else {
-        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Agar hozir bosh sahifada bo‘lsa — bevosita scroll qil
+        const el = document.getElementById(id);
+        el?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-      try { window.dispatchEvent(new Event("contact-focus")); } catch(_) {}
+
       onClose();
       return;
     }
-    // Normal route navigation — push immediately, then close overlay
-    e.preventDefault();
+
+    // Oddiy route uchun
     router.push(href);
     onClose();
   };
@@ -111,7 +127,9 @@ export default function MenuOverlay({ onClose, brandName }: { onClose: () => voi
               onClick={() => setImgIdx(i)}
               aria-label={`Switch to image ${i + 1}`}
               className={`h-16 w-24 rounded-lg overflow-hidden transition hover:scale-105 border-none p-0 shadow-none ${
-                imgIdx === i ? "opacity-100 outline-2 outline-yellow-400" : "opacity-40"
+                imgIdx === i
+                  ? "opacity-100 outline-2 outline-yellow-400"
+                  : "opacity-40"
               }`}
               style={{ background: "rgba(0,0,0,0.25)" }}
             >

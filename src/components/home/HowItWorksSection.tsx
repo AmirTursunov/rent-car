@@ -62,11 +62,23 @@ const HowItWorksSection = () => {
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-500 rounded-full blur-3xl"></div>
       </div>
 
-      <motion.div className="max-w-7xl mx-auto relative z-10 text-center mb-20" variants={headerVariants} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.5 }}>
-        <motion.div variants={fadeUp} className="inline-block px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full font-semibold text-sm mb-6">
+      <motion.div
+        className="max-w-7xl mx-auto relative z-10 text-center mb-20"
+        variants={headerVariants}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.5 }}
+      >
+        <motion.div
+          variants={fadeUp}
+          className="inline-block px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full font-semibold text-sm mb-6"
+        >
           ⚡ Qadam-baqadam
         </motion.div>
-        <motion.h2 variants={fadeUp} className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+        <motion.h2
+          variants={fadeUp}
+          className="text-5xl md:text-6xl font-bold mb-6 leading-tight"
+        >
           Bu qanday{" "}
           <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
             ishlaydi?
@@ -97,7 +109,9 @@ const HowItWorksSection = () => {
                 {step.number}
               </div>
               {/* Icon */}
-              <div className={`w-16 h-16 bg-gradient-to-br ${step.gradient} rounded-2xl flex items-center justify-center mb-6 relative z-10 group-hover:scale-110 transition-transform duration-300`}>
+              <div
+                className={`w-16 h-16 bg-gradient-to-br ${step.gradient} rounded-2xl flex items-center justify-center mb-6 relative z-10 group-hover:scale-110 transition-transform duration-300`}
+              >
                 <Icon className="w-8 h-8 text-white" />
               </div>
               {/* Title */}
@@ -109,7 +123,9 @@ const HowItWorksSection = () => {
                 {step.description}
               </p>
               {/* Bottom border animation */}
-              <div className={`absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r ${step.gradient} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}></div>
+              <div
+                className={`absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r ${step.gradient} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}
+              ></div>
             </motion.div>
           );
         })}
@@ -126,7 +142,16 @@ const HowItWorksSection = () => {
         <p className="text-gray-400 mb-6">
           Hali ham savollaringiz bormi? Biz doimo yordam beramiz.
         </p>
-        <button className="px-8 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-2xl hover:shadow-2xl hover:shadow-orange-500/50 transform hover:scale-105 transition-all duration-300">
+        <button
+          className="relative px-8 py-4 font-bold text-black rounded-2xl
+             bg-gradient-to-r from-yellow-400 to-orange-500 
+             transition-transform duration-300 transform hover:scale-105
+             before:content-[''] before:absolute before:inset-0 before:rounded-2xl 
+             before:transition-all before:duration-300 
+             before:shadow-[0_0_25px_rgba(255,165,0,0)] 
+             hover:before:shadow-[0_0_25px_rgba(255,165,0,0.6)] 
+             before:-z-10"
+        >
           Biz bilan bog‘lanish
         </button>
       </motion.div>

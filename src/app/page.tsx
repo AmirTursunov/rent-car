@@ -10,6 +10,8 @@ import WhyChooseUsSection from "../components/home/WhyChooseUsSection";
 import TestimonialsSection from "../components/home/TestimonialsSection";
 // import PricingSection from "../components/home/PricingSection";
 import CTASection from "../components/home/CTASection";
+import { Scroll } from "lucide-react";
+import ScrollTopButton from "@/components/ScrollTopButton";
 
 const ModernHomePage = () => {
   const [settings, setSettings] = React.useState({});
@@ -62,6 +64,7 @@ const ModernHomePage = () => {
 
       {/* 10. CTA - Call to Action */}
       <CTASection />
+      <ScrollTopButton />
     </div>
   );
 };

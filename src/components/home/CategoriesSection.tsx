@@ -2,6 +2,7 @@
 import React from "react";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { redirect } from "next/navigation";
 
 const headerVariants = {
   hidden: {},
@@ -22,7 +23,8 @@ const CategoriesSection = () => {
       name: "Lux Avtomobillar",
       count: "150+",
       description: "Premium va hashamatli avtomobillar",
-      image: "https://images.unsplash.com/photo-1563720360172-67b8f3dce741?w=500",
+      image:
+        "https://images.unsplash.com/photo-1563720360172-67b8f3dce741?w=500",
       color: "from-[#FFA400]/90 to-[#DCFF00]/80",
     },
     {
@@ -36,7 +38,8 @@ const CategoriesSection = () => {
       name: "SUV va Jeeplar",
       count: "120+",
       description: "Qishloq va tog'lar uchun ideal",
-      image: "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=500",
+      image:
+        "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=500",
       color: "from-[#FFA400]/80 to-[#DCFF00]/70",
     },
     {
@@ -49,7 +52,10 @@ const CategoriesSection = () => {
   ];
 
   return (
-    <section className="py-24 px-6 bg-transparent text-[#DCFF00] relative overflow-hidden">
+    <section
+      id="category"
+      className="py-24 px-6 bg-transparent text-[#DCFF00] relative overflow-hidden"
+    >
       {/* Neon Glow Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#202020]/40 to-transparent"></div>
       <div className="relative max-w-7xl mx-auto">
@@ -115,7 +121,10 @@ const CategoriesSection = () => {
                     {cat.description}
                   </p>
                   {/* Button */}
-                  <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#030303]/80 text-[#DCFF00] rounded-xl text-sm font-semibold border border-[#FFA400]/60 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:bg-[#202020] hover:text-[#FFA400] hover:shadow-[0_0_10px_#FFA400]">
+                  <button
+                    onClick={() => redirect("/cars")}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#030303]/80 text-[#DCFF00] rounded-xl text-sm font-semibold border border-[#FFA400]/60 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:bg-[#202020] hover:text-[#FFA400] hover:shadow-[0_0_10px_#FFA400]"
+                  >
                     Ko‘rish
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>

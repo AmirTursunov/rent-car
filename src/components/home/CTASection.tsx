@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { ArrowRight, Phone, Mail, MapPin, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSettings } from "../context/SettingContext";
+import { redirect } from "next/navigation";
 
 const headerVariants = {
   hidden: {},
@@ -34,7 +35,8 @@ const CTASection = () => {
       }
       const handler = () => trigger();
       window.addEventListener("contact-focus", handler as EventListener);
-      return () => window.removeEventListener("contact-focus", handler as EventListener);
+      return () =>
+        window.removeEventListener("contact-focus", handler as EventListener);
     }
   }, []);
 
@@ -63,7 +65,9 @@ const CTASection = () => {
     <section
       id="contact"
       className={`py-24 px-6 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden transition-all duration-700 ${
-        highlight ? "ring-2 ring-yellow-400/60 shadow-[0_0_40px_rgba(250,204,21,.35)]" : ""
+        highlight
+          ? "ring-2 ring-yellow-400/60 shadow-[0_0_40px_rgba(250,204,21,.35)]"
+          : ""
       }`}
     >
       {/* Background Decorations */}
@@ -109,7 +113,10 @@ const CTASection = () => {
           variants={fadeUp}
           className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
         >
-          <button className="group px-10 py-5 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all text-lg flex items-center gap-2">
+          <button
+            onClick={() => redirect("/cars")}
+            className="group px-10 py-5 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all text-lg flex items-center gap-2"
+          >
             Hozir boshlash
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
