@@ -49,9 +49,9 @@ const CategoriesSection = () => {
   ];
 
   return (
-    <section className="py-24 px-6 bg-[#030303] text-[#DCFF00] relative overflow-hidden">
+    <section className="py-24 px-6 bg-transparent text-[#DCFF00] relative overflow-hidden">
       {/* Neon Glow Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#202020]/40 to-[#030303]"></div>
+      <div className="absolute inset-0 bg-gradient-to-b from-[#202020]/40 to-transparent"></div>
       <div className="relative max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
@@ -61,7 +61,10 @@ const CategoriesSection = () => {
           whileInView="show"
           viewport={{ once: true, amount: 0.45 }}
         >
-          <motion.div variants={fadeUp} className="inline-block px-5 py-2 bg-[#202020] text-[#FFA400] rounded-full font-semibold text-sm mb-4 border border-[#FFA400]/40 shadow-[0_0_15px_#FFA400]">
+          <motion.div
+            variants={fadeUp}
+            className="inline-block px-5 py-2 bg-[#202020] text-[#FFA400] rounded-full font-semibold text-sm mb-4 border border-[#FFA400]/40 shadow-[0_0_15px_#FFA400]"
+          >
             🚗 Kategoriyalar
           </motion.div>
           <motion.h2 variants={fadeUp} className="text-5xl font-bold mb-4">
@@ -132,7 +135,7 @@ const CategoriesSection = () => {
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
-          viewport={{ once: true, amount: 0.40 }}
+          viewport={{ once: true, amount: 0.4 }}
         >
           <div className="inline-flex items-center gap-6 bg-[#202020] rounded-2xl px-10 py-6 border border-[#FFA400]/40 shadow-[0_0_20px_#FFA400]/30">
             <div className="flex -space-x-2">

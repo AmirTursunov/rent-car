@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import HeroSection from "../components/home/HeroSection";
 // import SearchSection from "../components/home/SearchSection";
 import FeaturesSection from "../components/home/FeaturesSection";
@@ -12,8 +12,27 @@ import TestimonialsSection from "../components/home/TestimonialsSection";
 import CTASection from "../components/home/CTASection";
 
 const ModernHomePage = () => {
+  const [settings, setSettings] = React.useState({});
+  const [isLoading, setIsLoading] = React.useState(true);
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        const json = await res.json();
+        if (isMounted && json?.success) setSettings(json.data || {});
+      } catch (e) {
+        // silent fallback
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   return (
-    <div className="min-h-screen flex flex-col gap-30 bg-[#030303]">
+    <div className="min-h-screen flex flex-col">
       {/* 1. Hero Section - Asosiy qism */}
       <HeroSection />
 

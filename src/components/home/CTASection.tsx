@@ -1,8 +1,8 @@
-// components/home/CTASection.tsx
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowRight, Phone, Mail, MapPin, Star } from "lucide-react";
 import { motion } from "framer-motion";
+import { useSettings } from "../context/SettingContext";
 
 const headerVariants = {
   hidden: {},
@@ -18,29 +18,54 @@ const gridVariants = {
 };
 
 const CTASection = () => {
+  const { settings, isLoading } = useSettings();
+  const [highlight, setHighlight] = useState(false);
+
+  useEffect(() => {
+    const trigger = () => {
+      setHighlight(true);
+      const t = setTimeout(() => setHighlight(false), 1200);
+      return () => clearTimeout(t);
+    };
+
+    if (typeof window !== "undefined") {
+      if (window.location.hash === "#contact") {
+        trigger();
+      }
+      const handler = () => trigger();
+      window.addEventListener("contact-focus", handler as EventListener);
+      return () => window.removeEventListener("contact-focus", handler as EventListener);
+    }
+  }, []);
+
   const contactGrid = [
     {
       icon: Phone,
       title: "Telefon",
-      info: "+998 90 123 45 67",
+      info: settings.phone || "+998 90 123 45 67",
       subtitle: "24/7",
     },
     {
       icon: Mail,
       title: "Email",
-      info: "info@rentcar.uz",
+      info: settings.contactEmail || "info@rentcar.uz",
       subtitle: "Tezkor javob",
     },
     {
       icon: MapPin,
       title: "Manzil",
-      info: "Toshkent, Chilonzor",
-      subtitle: "Markaz ofis",
+      info: settings.address || "Toshkent, Chilonzor",
+      subtitle: settings.companyName || "Markaz ofis",
     },
   ];
 
   return (
-    <section className="py-24 px-6 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
+    <section
+      id="contact"
+      className={`py-24 px-6 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden transition-all duration-700 ${
+        highlight ? "ring-2 ring-yellow-400/60 shadow-[0_0_40px_rgba(250,204,21,.35)]" : ""
+      }`}
+    >
       {/* Background Decorations */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-500 rounded-full blur-3xl animate-pulse"></div>
@@ -55,32 +80,53 @@ const CTASection = () => {
         viewport={{ once: true, amount: 0.48 }}
       >
         {/* Heading */}
-        <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full font-semibold text-sm mb-6">
+        <motion.div
+          variants={fadeUp}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full font-semibold text-sm mb-6"
+        >
           <Star className="w-4 h-4 text-yellow-400 fill-current" />
           <span>25,000+ qoniqarli mijozlar</span>
         </motion.div>
-        <motion.h2 variants={fadeUp} className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+        <motion.h2
+          variants={fadeUp}
+          className="text-5xl md:text-6xl font-bold mb-6 leading-tight"
+        >
           Orzuingizdagi avtomobilni{" "}
           <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
             hoziroq bron qiling!
           </span>
         </motion.h2>
-        <motion.p variants={fadeUp} className="text-lg text-gray-300 max-w-3xl mx-auto mb-12">
-          Premium avtomobillar, qulay narxlar va professional xizmat. Sayohatingizni unutilmas qiling!
+        <motion.p
+          variants={fadeUp}
+          className="text-lg text-gray-300 max-w-3xl mx-auto mb-12"
+        >
+          Premium avtomobillar, qulay narxlar va professional xizmat.
+          Sayohatingizni unutilmas qiling!
         </motion.p>
+
         {/* CTA Buttons */}
-        <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+        <motion.div
+          variants={fadeUp}
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
+        >
           <button className="group px-10 py-5 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all text-lg flex items-center gap-2">
             Hozir boshlash
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
-          <button className="px-10 py-5 bg-white/10 backdrop-blur-sm text-white font-bold rounded-2xl border-2 border-white hover:bg-white/20 transition-all text-lg flex items-center gap-2">
+          <a
+            href={`tel:${(settings.phone || "").replace(/\s/g, "")}`}
+            className="px-10 py-5 bg-white/10 backdrop-blur-sm text-white font-bold rounded-2xl border-2 border-white hover:bg-white/20 transition-all text-lg flex items-center gap-2"
+          >
             <Phone className="w-5 h-5" />
             Qo'ng'iroq qilish
-          </button>
+          </a>
         </motion.div>
+
         {/* Stats */}
-        <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center gap-8 text-white/90 mb-16">
+        <motion.div
+          variants={fadeUp}
+          className="flex flex-wrap items-center justify-center gap-8 text-white/90 mb-16"
+        >
           <div className="flex items-center gap-2">
             <div className="flex -space-x-2 gap-2.5">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -127,7 +173,9 @@ const CTASection = () => {
                 </div>
                 <div className="text-left">
                   <p className="text-sm text-gray-300 mb-1">{contact.title}</p>
-                  <p className="text-lg font-bold mb-1">{contact.info}</p>
+                  <p className="text-lg font-bold mb-1">
+                    {isLoading && idx === 0 ? "..." : contact.info}
+                  </p>
                   <p className="text-sm text-gray-300">{contact.subtitle}</p>
                 </div>
               </div>
@@ -199,7 +247,9 @@ const CTASection = () => {
                 />
               </svg>
             </div>
-            <span className="text-white font-semibold">24/7 Qo'llab-quvvatlash</span>
+            <span className="text-white font-semibold">
+              24/7 Qo'llab-quvvatlash
+            </span>
           </div>
         </div>
       </motion.div>

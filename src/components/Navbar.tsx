@@ -1,12 +1,11 @@
 // components/home/Navbar.tsx
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import MenuOverlay from "./MenuOverlay";
-
-export default function Navbar() {
+import { NavbarGuardProps } from "./NavbarGuard";
+export default function Navbar({ settings }: NavbarGuardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [brandName, setBrandName] = useState("RentCar");
 
@@ -28,9 +27,9 @@ export default function Navbar() {
           {/* Logo */}
           <Link
             href="/"
-            className="text-2xl font-bold tracking-tight text-yellow-400 hover:text-orange-400 transition-colors"
+            className="text-2xl font-bold tracking-tight bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 bg-clip-text text-transparent hover:opacity-90 transition-opacity"
           >
-            Rent<span className="text-orange-400">Car</span>
+            {settings.companyName}
           </Link>
           {/* BAR faqat o'ng tomonda */}
           <button

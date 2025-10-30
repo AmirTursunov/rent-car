@@ -11,6 +11,7 @@ import {
   Zap,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 const headerVariants = {
   hidden: {},
@@ -132,15 +133,17 @@ const WhyChooseUsSection = () => {
                 );
               })}
             </motion.div>
-            <motion.button
-              className="px-8 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-2xl hover:shadow-2xl hover:shadow-orange-500/50 transform hover:scale-105 transition-all duration-300"
-              initial={{ opacity: 0, scale: 0.96 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7 }}
-              viewport={{ once: true, amount: 0.33 }}
-            >
-              Batafsil ma'lumot
-            </motion.button>
+            <Link href="/about">
+              <motion.button
+                className="px-8 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-2xl hover:shadow-2xl hover:shadow-orange-500/50 transform hover:scale-105 transition-all duration-300"
+                initial={{ opacity: 0, scale: 0.96 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.7 }}
+                viewport={{ once: true, amount: 0.33 }}
+              >
+                Batafsil ma'lumot
+              </motion.button>
+            </Link>
           </motion.div>
 
           {/* Right Content - Image & Stats */}

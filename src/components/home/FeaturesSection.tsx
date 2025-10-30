@@ -1,7 +1,14 @@
-// components/home/FeaturesSection.tsx
 "use client";
 import React from "react";
-import { Shield, Clock, Award, Headphones, DollarSign, MapPin, CheckCircle } from "lucide-react";
+import {
+  Shield,
+  Clock,
+  Award,
+  Headphones,
+  DollarSign,
+  MapPin,
+  CheckCircle,
+} from "lucide-react";
 import { motion } from "framer-motion";
 
 const headerVariants = {
@@ -54,7 +61,7 @@ const FeaturesSection = () => {
   ];
 
   return (
-    <section className="py-24 px-6 bg-[#030303] text-white relative overflow-hidden">
+    <section className="py-24 px-6 bg-transparent text-white relative overflow-hidden">
       {/* Yorug‘lik effektlari */}
       <div className="absolute top-20 -left-20 w-96 h-96 bg-[#DCFF00]/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-20 -right-20 w-96 h-96 bg-[#FFA400]/10 rounded-full blur-3xl"></div>

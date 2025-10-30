@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { usePathname, useRouter } from "next/navigation";
 
 const images = ["/menu1.jpg", "/menu2.jpg", "/menu3.jpg"];
 
@@ -11,7 +12,7 @@ const navLinks = [
   { href: "/bookings", label: "Buyurtmalarim" },
   { href: "/profile", label: "Profil" },
   { href: "/about", label: "Biz haqimizda" },
-  { href: "/contacts", label: "Kontaktlar" },
+  { href: "/#contact", label: "Kontaktlar" },
 ];
 
 const navVariants = {
@@ -19,7 +20,7 @@ const navVariants = {
   show: {
     transition: {
       staggerChildren: 0.07,
-      delayChildren: 0.23,
+      delayChildren: 0.12,
     },
   },
 };
@@ -29,18 +30,14 @@ const navItemVariants = {
   show: (i: number) => ({
     opacity: 1,
     x: 0,
-    transition: { duration: 0.35, delay: i * 0.03 },
+    transition: { duration: 0.22, delay: i * 0.03 },
   }),
 };
 
-export default function MenuOverlay({
-  onClose,
-  brandName,
-}: {
-  onClose: () => void;
-  brandName: string;
-}) {
+export default function MenuOverlay({ onClose, brandName }: { onClose: () => void, brandName: string }) {
   const [imgIdx, setImgIdx] = useState(0);
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -49,13 +46,45 @@ export default function MenuOverlay({
     return () => clearInterval(timer);
   }, []);
 
+  // Prefetch common routes for instant nav
+  useEffect(() => {
+    ["/", "/cars", "/bookings", "/profile", "/about"].forEach((r) => {
+      try {
+        router.prefetch?.(r as any);
+      } catch (_) {}
+    });
+  }, [router]);
+
+  const handleNavClick = async (
+    e: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
+    href: string
+  ) => {
+    // In-page anchor like '/#contact'
+    if (href.startsWith("/#")) {
+      e.preventDefault();
+      const id = href.split("#")[1];
+      if (pathname !== "/") {
+        router.push(href);
+      } else {
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      try { window.dispatchEvent(new Event("contact-focus")); } catch(_) {}
+      onClose();
+      return;
+    }
+    // Normal route navigation — push immediately, then close overlay
+    e.preventDefault();
+    router.push(href);
+    onClose();
+  };
+
   return (
     <motion.div
-      className="fixed inset-0 w-screen h-screen bg-black/95 z-[100] flex items-stretch overflow-hidden"
+      className="fixed inset-0 w-screen h-screen app-gradient-bg z-[100] flex items-stretch overflow-hidden"
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 60 }}
-      transition={{ duration: 0.45 }}
+      exit={{ opacity: 0, y: 40 }}
+      transition={{ duration: 0.12 }}
     >
       {/* Chap - BG image bilan o'ngdan gradient overlay va brend */}
       <div
@@ -82,9 +111,7 @@ export default function MenuOverlay({
               onClick={() => setImgIdx(i)}
               aria-label={`Switch to image ${i + 1}`}
               className={`h-16 w-24 rounded-lg overflow-hidden transition hover:scale-105 border-none p-0 shadow-none ${
-                imgIdx === i
-                  ? "opacity-100 outline-2 outline-yellow-400"
-                  : "opacity-40"
+                imgIdx === i ? "opacity-100 outline-2 outline-yellow-400" : "opacity-40"
               }`}
               style={{ background: "rgba(0,0,0,0.25)" }}
             >
@@ -121,8 +148,9 @@ export default function MenuOverlay({
             >
               <Link
                 href={link.href}
+                prefetch
                 className="text-white text-[1rem] md:text-[1.40rem] font-semibold tracking-tight leading-tight hover:text-yellow-400 transition-all duration-150 border-r-4 border-transparent hover:border-yellow-400 pr-10"
-                onClick={onClose}
+                onClick={(e) => handleNavClick(e, link.href)}
               >
                 {"/ " + link.label}
               </Link>
