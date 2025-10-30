@@ -1,42 +1,65 @@
+// components/home/Navbar.tsx
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const navLinks = [
-  { href: "/", label: "Bosh sahifa" },
-  { href: "/cars", label: "Mashinalar" },
-  { href: "/bookings", label: "Buyurtmalarim" },
-  { href: "/profile", label: "Profil" },
-];
+import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
+import MenuOverlay from "./MenuOverlay";
 
 export default function Navbar() {
-  const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
+  const [brandName, setBrandName] = useState("RentCar");
+
+  useEffect(() => {
+    // Bunda brand nomi backendan olinishi mumkin (fetch yoki props orqali), hozircha static
+    async function fetchBrand() {
+      // const resp = await fetch('/api/settings');
+      // const json = await resp.json();
+      // setBrandName(json.brandName);
+      setBrandName("RentCar");
+    }
+    fetchBrand();
+  }, []);
 
   return (
-    <header className="border-b bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-40">
-      <div className="px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="text-xl font-semibold">
-          RentCar
-        </Link>
-        <nav className="flex items-center gap-4">
-          {navLinks.map((link) => {
-            const active = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                  active ? "bg-black text-white" : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-black/30 backdrop-blur-lg border-b border-white/10">
+      <div className="max-w-7xl mx-auto px-6 sm:px-8">
+        <div className="flex items-center justify-between h-20 py-4">
+          {/* Logo */}
+          <Link
+            href="/"
+            className="text-2xl font-bold tracking-tight text-yellow-400 hover:text-orange-400 transition-colors"
+          >
+            Rent<span className="text-orange-400">Car</span>
+          </Link>
+          {/* BAR faqat o'ng tomonda */}
+          <button
+            onClick={() => setIsOpen(true)}
+            className="text-yellow-400 hover:text-orange-400 transition"
+          >
+            <Menu className="w-7 h-7" />
+          </button>
+        </div>
       </div>
+      {/* MenuOverlay */}
+      {isOpen && (
+        <MenuOverlay onClose={() => setIsOpen(false)} brandName={brandName} />
+      )}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-5px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.25s ease-out;
+        }
+      `}</style>
     </header>
   );
 }
-
-

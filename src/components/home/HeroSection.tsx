@@ -2,14 +2,33 @@
 "use client";
 import React from "react";
 import { Play, Star, CheckCircle, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
 
 const HeroSection = () => {
+  const containerVariants = {
+    hidden: {},
+    show: {
+      transition: {
+        staggerChildren: 0.12,
+        delayChildren: 0.16,
+      },
+    },
+  };
+  const fadeVariant = {
+    hidden: { opacity: 0, y: 40 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.7 } },
+  };
+  const fadeScaleVariant = {
+    hidden: { opacity: 0, scale: 0.92 },
+    show: { opacity: 1, scale: 1, transition: { duration: 0.8 } },
+  };
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
+    <div className="relative min-h-screen overflow-hidden ">
       {/* Animated Background */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=1920')] bg-cover bg-center opacity-20"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-900/90 via-purple-900/90 to-pink-900/90"></div>
+        <div className="absolute inset-0 bg-[url(/bg-rent.jpg)] bg-cover bg-center"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-transparent"></div>
 
         {/* Floating Elements */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
@@ -17,30 +36,44 @@ const HeroSection = () => {
         <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-6 pt-32 pb-20">
+      <motion.div
+        className="relative max-w-7xl mx-auto px-6 pt-32 pb-20"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
           <div className="text-white space-y-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
+            <motion.div
+              variants={fadeVariant}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20"
+            >
               <Star className="w-4 h-4 text-yellow-400 fill-current" />
               <span className="text-sm font-medium">4.9/5 reytingga ega</span>
               <span className="text-xs text-white/70">(15,000+ sharh)</span>
-            </div>
+            </motion.div>
 
-            <h1 className="text-6xl md:text-7xl font-bold leading-tight">
+            <motion.h1
+              variants={fadeScaleVariant}
+              className="text-6xl md:text-7xl font-bold leading-tight"
+            >
               Orzuingizdagi
               <span className="block bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
                 Avtomobilni
               </span>
               ijaraga oling
-            </h1>
+            </motion.h1>
 
-            <p className="text-xl text-white/80 leading-relaxed max-w-xl">
+            <motion.p
+              variants={fadeVariant}
+              className="text-xl text-white/80 leading-relaxed max-w-xl"
+            >
               Premium avtomobillar, eng yaxshi narxlar va ajoyib xizmat.
               Sayohatingizni unutilmas qiling!
-            </p>
+            </motion.p>
 
-            <div className="flex flex-wrap gap-4">
+            <motion.div variants={fadeVariant} className="flex flex-wrap gap-4">
               <button className="group px-8 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-2xl hover:shadow-2xl hover:shadow-orange-500/50 transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
                 Hozir boshlash
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -52,35 +85,30 @@ const HeroSection = () => {
                 </div>
                 Video ko'rish
               </button>
-            </div>
+            </motion.div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-6 pt-8 border-t border-white/20">
-              <div>
+            <motion.div
+              className="grid grid-cols-3 gap-6 pt-8 border-t border-white/20"
+              variants={containerVariants}
+            >
+              <motion.div variants={fadeVariant}>
                 <p className="text-3xl font-bold text-yellow-400">500+</p>
                 <p className="text-sm text-white/70">Avtomobillar</p>
-              </div>
-              <div>
+              </motion.div>
+              <motion.div variants={fadeVariant}>
                 <p className="text-3xl font-bold text-pink-400">25K+</p>
                 <p className="text-sm text-white/70">Mijozlar</p>
-              </div>
-              <div>
+              </motion.div>
+              <motion.div variants={fadeVariant}>
                 <p className="text-3xl font-bold text-purple-400">15+</p>
                 <p className="text-sm text-white/70">Yillik tajriba</p>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
 
           {/* Right Content - Car Image */}
           <div className="relative">
-            <div className="relative z-10">
-              <img
-                src="https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=800"
-                alt="Luxury Car"
-                className="w-full drop-shadow-2xl animate-float"
-              />
-            </div>
-
             {/* Floating Cards */}
             <div className="absolute top-10 -left-10 bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/20 shadow-2xl animate-float-slow">
               <div className="flex items-center gap-3">
@@ -107,7 +135,7 @@ const HeroSection = () => {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Scroll Indicator */}
       <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce">
