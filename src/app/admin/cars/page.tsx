@@ -16,6 +16,7 @@ interface CarData {
   _id: string;
   brand: string;
   carModel: string;
+  category?: string;
   year: number;
   color: string;
   fuelType: string;
@@ -38,9 +39,12 @@ const AdminCarsPage: React.FC = () => {
   const [selectedCar, setSelectedCar] = useState<CarData | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<Partial<CarData>>({
     brand: "",
     carModel: "",
+    category: "economy",
     year: new Date().getFullYear(),
     color: "",
     fuelType: "benzin",
@@ -89,65 +93,25 @@ const AdminCarsPage: React.FC = () => {
     }
   };
 
-  // ✅ Rasmni Cloudinary ga yuklash
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ✅ Rasmni faqat saqlash bosilganda yuklaymiz (bu funksiya faqat preview va faylni saqlaydi)
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // File hajmini tekshirish (5MB)
     if (file.size > 5 * 1024 * 1024) {
       setError("Rasm hajmi 5MB dan kichik bo'lishi kerak");
       return;
     }
-
-    // File turini tekshirish
     if (!file.type.startsWith("image/")) {
       setError("Faqat rasm yuklash mumkin");
       return;
     }
 
-    try {
-      setUploadingImage(true);
-      setError(null);
-
-      // Preview uchun
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-
-      // Cloudinary ga yuklash
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", file);
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formDataUpload,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Yuklashda xatolik");
-      }
-
-      const data = await response.json();
-
-      if (data.url) {
-        setFormData({
-          ...formData,
-          images: [data.url],
-        });
-        console.log("✅ Rasm yuklandi:", data.url);
-      }
-
-      setUploadingImage(false);
-    } catch (err) {
-      console.error("Upload error:", err);
-      setError(err instanceof Error ? err.message : "Rasm yuklashda xatolik");
-      setUploadingImage(false);
-      setImagePreview(""); // Preview ni tozalash
-    }
+    setError(null);
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -160,12 +124,17 @@ const AdminCarsPage: React.FC = () => {
       return;
     }
 
+    if (!formData.category) {
+      setError("Kategoriya tanlang!");
+      return;
+    }
+
     if (!formData.location?.city || !formData.location?.address) {
       setError("Shahar va Manzil to'ldirilishi shart!");
       return;
     }
 
-    if (!formData.images || formData.images.length === 0) {
+    if ((!formData.images || formData.images.length === 0) && !selectedFile) {
       setError("Rasm yuklash majburiy!");
       return;
     }
@@ -176,6 +145,7 @@ const AdminCarsPage: React.FC = () => {
     }
 
     try {
+      setSaving(true);
       const token = getToken();
       if (!token) {
         setError("Token topilmadi");
@@ -187,13 +157,38 @@ const AdminCarsPage: React.FC = () => {
 
       console.log("📤 Yuborilmoqda:", formData);
 
+      // Agar yangi fayl tanlangan bo'lsa, avval uni yuklaymiz
+      let imagesToSend = formData.images || [];
+      if (selectedFile) {
+        try {
+          setUploadingImage(true);
+          const uploadData = new FormData();
+          uploadData.append("file", selectedFile);
+          const uploadRes = await fetch("/api/upload", {
+            method: "POST",
+            body: uploadData,
+          });
+          const uploadJson = await uploadRes.json();
+          if (!uploadRes.ok || !uploadJson.url) {
+            throw new Error(uploadJson.error || "Rasm yuklashda xatolik");
+          }
+          imagesToSend = [uploadJson.url];
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+
       const response = await fetch(url, {
         method,
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          images: imagesToSend,
+          category: formData.category || "economy",
+        }),
       });
 
       const data = await response.json();
@@ -206,6 +201,7 @@ const AdminCarsPage: React.FC = () => {
       if (data.success) {
         setShowAddModal(false);
         setImagePreview("");
+        setSelectedFile(null);
         setSelectedCar(null);
         fetchCars();
         alert(selectedCar ? "Mashina yangilandi!" : "Mashina qo'shildi!");
@@ -213,6 +209,8 @@ const AdminCarsPage: React.FC = () => {
     } catch (err) {
       console.error("Save error:", err);
       setError(err instanceof Error ? err.message : "Xatolik");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -291,6 +289,7 @@ const AdminCarsPage: React.FC = () => {
             setFormData({
               brand: "",
               carModel: "",
+              category: "economy",
               year: new Date().getFullYear(),
               color: "",
               fuelType: "benzin",
@@ -365,6 +364,11 @@ const AdminCarsPage: React.FC = () => {
               >
                 {car.available ? "Mavjud" : "Band"}
               </span>
+              {car.category && (
+                <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700">
+                  {car.category}
+                </span>
+              )}
             </div>
 
             <div className="p-4">
@@ -394,7 +398,10 @@ const AdminCarsPage: React.FC = () => {
                   <button
                     onClick={() => {
                       setSelectedCar(car);
-                      setFormData(car);
+                      setFormData({
+                        ...car,
+                        category: (car as any).category || "economy",
+                      });
                       setImagePreview(car.images[0] || "");
                       setShowAddModal(true);
                     }}
@@ -532,6 +539,23 @@ const AdminCarsPage: React.FC = () => {
                     placeholder="Camry"
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Kategoriya *
+                  </label>
+                  <select
+                    value={formData.category || "economy"}
+                    onChange={(e) =>
+                      setFormData({ ...formData, category: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="economy">Economy</option>
+                    <option value="luxury">Luxury</option>
+                    <option value="suv">SUV</option>
+                    <option value="sports">Sports</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">
@@ -711,10 +735,13 @@ const AdminCarsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={uploadingImage}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  disabled={uploadingImage || saving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {uploadingImage ? "Yuklanmoqda..." : "Saqlash"}
+                  {(uploadingImage || saving) && (
+                    <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  )}
+                  {saving || uploadingImage ? "Yuklanmoqda..." : "Saqlash"}
                 </button>
               </div>
             </form>

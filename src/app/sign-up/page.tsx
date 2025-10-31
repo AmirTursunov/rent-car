@@ -68,6 +68,9 @@ export default function RegisterForm() {
       // ✅ localStorage ga to‘g‘ri saqlash
       localStorage.setItem("token", data.data!.token);
       localStorage.setItem("user", JSON.stringify(data.data!.user));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("auth-changed"));
+      }
 
       // ✅ Admin bo‘lsa admin sahifasiga yo‘naltiramiz
       if (dataToSend.role === "admin") {

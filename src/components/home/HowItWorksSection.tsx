@@ -3,7 +3,7 @@
 import React from "react";
 import { Search, Calendar, Key, CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
-
+import { useSettings } from "../context/SettingContext";
 const headerVariants = {
   hidden: {},
   show: {
@@ -20,6 +20,7 @@ const stepsGridVariants = {
 };
 
 const HowItWorksSection = () => {
+  const { settings } = useSettings();
   const steps = [
     {
       icon: Search,
@@ -142,7 +143,8 @@ const HowItWorksSection = () => {
         <p className="text-gray-400 mb-6">
           Hali ham savollaringiz bormi? Biz doimo yordam beramiz.
         </p>
-        <button
+        <a
+          href={`tel:${(settings.phone || "").replace(/\s/g, "")}`}
           className="relative px-8 py-4 font-bold text-black rounded-2xl
              bg-gradient-to-r from-yellow-400 to-orange-500 
              transition-transform duration-300 transform hover:scale-105
@@ -153,7 +155,7 @@ const HowItWorksSection = () => {
              before:-z-10"
         >
           Biz bilan bog‘lanish
-        </button>
+        </a>
       </motion.div>
     </section>
   );

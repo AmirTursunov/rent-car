@@ -9,24 +9,33 @@ async function seedDatabase() {
     await connectDB();
     console.log("🔌 MongoDB ulanish muvaffaqiyatli");
 
-    // Admin foydalanuvchi yaratish
+    // Admin foydalanuvchini upsert qilish (agar bo'lsa yangilamaydi, bo'lmasa yaratadi)
     const hashedPassword = await bcrypt.hash("admin123", 12);
+    await User.updateOne(
+      { email: "admin@rentcar.uz" },
+      {
+        $setOnInsert: {
+          name: "Admin User",
+          email: "admin@rentcar.uz",
+          password: hashedPassword,
+          phone: "+998901234567",
+          role: "admin",
+        },
+      },
+      { upsert: true }
+    );
 
-    const adminUser = await User.create({
-      name: "Admin User",
-      email: "admin@rentcar.uz",
-      password: hashedPassword,
-      phone: "+998901234567",
-      role: "admin",
-    });
+    const adminUser = await User.findOne({ email: "admin@rentcar.uz" });
+    if (!adminUser) throw new Error("Admin userni olishda xatolik");
 
-    console.log("👤 Admin foydalanuvchi yaratildi");
+    console.log("👤 Admin foydalanuvchi tayyor");
 
     // Test mashinalar yaratish
     const testCars = [
       {
         brand: "Toyota",
-        model: "Camry",
+        carModel: "Camry",
+        category: "economy",
         year: 2022,
         color: "Oq",
         fuelType: "benzin",
@@ -47,7 +56,8 @@ async function seedDatabase() {
       },
       {
         brand: "Hyundai",
-        model: "Elantra",
+        carModel: "Elantra",
+        category: "suv",
         year: 2023,
         color: "Qora",
         fuelType: "benzin",
@@ -68,8 +78,13 @@ async function seedDatabase() {
       },
     ];
 
-    await Car.insertMany(testCars);
-    console.log("🚗 Test mashinalar yaratildi");
+    const existingCars = await Car.countDocuments({});
+    if (existingCars === 0) {
+      await Car.insertMany(testCars, { ordered: false });
+      console.log("🚗 Test mashinalar yaratildi");
+    } else {
+      console.log(`🚗 Avvaldan mavjud mashinalar: ${existingCars} ta. Yaratilmadi.`);
+    }
 
     console.log("✅ Database seeding yakunlandi!");
 

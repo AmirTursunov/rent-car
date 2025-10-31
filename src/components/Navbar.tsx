@@ -2,22 +2,40 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu, User } from "lucide-react";
 import MenuOverlay from "./MenuOverlay";
 import { NavbarGuardProps } from "./NavbarGuard";
+
 export default function Navbar({ settings }: NavbarGuardProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [brandName, setBrandName] = useState("RentCar");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    // Bunda brand nomi backendan olinishi mumkin (fetch yoki props orqali), hozircha static
-    async function fetchBrand() {
-      // const resp = await fetch('/api/settings');
-      // const json = await resp.json();
-      // setBrandName(json.brandName);
-      setBrandName("RentCar");
-    }
-    fetchBrand();
+    const checkAuth = () => {
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        setIsLoggedIn(!!token);
+      } catch (_) {
+        setIsLoggedIn(false);
+      }
+    };
+
+    checkAuth();
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "token") {
+        checkAuth();
+      }
+    };
+
+    const onAuthChanged = () => checkAuth();
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("auth-changed", onAuthChanged as EventListener);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("auth-changed", onAuthChanged as EventListener);
+    };
   }, []);
 
   return (
@@ -31,19 +49,45 @@ export default function Navbar({ settings }: NavbarGuardProps) {
           >
             {settings.companyName}
           </Link>
-          {/* BAR faqat o'ng tomonda */}
-          <button
-            onClick={() => setIsOpen(true)}
-            className="text-yellow-400 hover:text-orange-400 transition"
-          >
-            <Menu className="w-7 h-7" />
-          </button>
+
+          {/* Sign In / Profile + Menu */}
+          <div className="flex items-center gap-4">
+            {isLoggedIn ? (
+              <Link
+                href="/profile"
+                className="p-2 rounded-xl border border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black transition inline-flex items-center justify-center"
+                aria-label="Profile"
+                title="Profile"
+              >
+                <User className="w-5 h-5" />
+              </Link>
+            ) : (
+              <Link
+                href="/sign-in"
+                className="px-4 py-2 rounded-xl border border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black transition"
+              >
+                Sign In
+              </Link>
+            )}
+
+            <button
+              onClick={() => setIsOpen(true)}
+              className="text-yellow-400 hover:text-orange-400 transition"
+            >
+              <Menu className="w-7 h-7" />
+            </button>
+          </div>
         </div>
       </div>
+
       {/* MenuOverlay */}
       {isOpen && (
-        <MenuOverlay onClose={() => setIsOpen(false)} brandName={brandName} />
+        <MenuOverlay
+          onClose={() => setIsOpen(false)}
+          brandName={settings.companyName}
+        />
       )}
+
       <style jsx>{`
         @keyframes fadeIn {
           from {

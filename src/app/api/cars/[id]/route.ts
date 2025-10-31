@@ -4,13 +4,14 @@ import Car from "@/models/Car";
 import { verifyToken } from "@/lib/auth";
 import { ApiResponse } from "@/types";
 
+// ====== GET /api/cars/[id] ======
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = await params;
-    
+    const { id } = params;
+
     if (!id) {
       return NextResponse.json(
         {
@@ -23,10 +24,7 @@ export async function GET(
     }
 
     await connectDB();
-    const car = await Car.findById(id).populate(
-      "owner",
-      "name email phone"
-    );
+    const car = await Car.findById(id).populate("owner", "name email phone");
 
     if (!car) {
       return NextResponse.json(
@@ -45,7 +43,7 @@ export async function GET(
       data: { car },
     });
   } catch (error) {
-    console.error("Get car error:", error);
+    console.error("GET /cars/[id] error:", error);
     return NextResponse.json(
       {
         success: false,
@@ -57,13 +55,14 @@ export async function GET(
   }
 }
 
+// ====== PUT /api/cars/[id] ======
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = await params;
-    
+    const { id } = params;
+
     if (!id) {
       return NextResponse.json(
         {
@@ -80,8 +79,8 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
-          message: "Ruxsat yo'q",
-          error: "Ruxsat yo'q",
+          message: "Ruxsat yo‘q",
+          error: "Ruxsat yo‘q",
         },
         { status: 403 }
       );
@@ -112,7 +111,7 @@ export async function PUT(
       data: { car },
     });
   } catch (error) {
-    console.error("Update car error:", error);
+    console.error("PUT /cars/[id] error:", error);
     return NextResponse.json(
       {
         success: false,
@@ -124,13 +123,14 @@ export async function PUT(
   }
 }
 
+// ====== DELETE /api/cars/[id] ======
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = await params;
-    
+    const { id } = params;
+
     if (!id) {
       return NextResponse.json(
         {
@@ -147,8 +147,8 @@ export async function DELETE(
       return NextResponse.json(
         {
           success: false,
-          message: "Ruxsat yo'q",
-          error: "Ruxsat yo'q",
+          message: "Ruxsat yo‘q",
+          error: "Ruxsat yo‘q",
         },
         { status: 403 }
       );
@@ -170,15 +170,15 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: "Mashina muvaffaqiyatli o'chirildi",
+      message: "Mashina muvaffaqiyatli o‘chirildi",
     });
   } catch (error) {
-    console.error("Delete car error:", error);
+    console.error("DELETE /cars/[id] error:", error);
     return NextResponse.json(
       {
         success: false,
         message: "Server xatosi",
-        error: "Mashina o'chirishda xatolik",
+        error: "Mashina o‘chirishda xatolik",
       },
       { status: 500 }
     );

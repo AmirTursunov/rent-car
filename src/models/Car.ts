@@ -4,6 +4,7 @@ export interface ICar extends Document {
   _id: string;
   brand: string;
   carModel: string;
+  category?: string;
   year: number;
   color: string;
   fuelType: "benzin" | "dizel" | "elektr" | "gibrid";
@@ -42,6 +43,11 @@ const carSchema = new Schema<ICar>(
       type: String,
       required: [true, "Model kiritilishi kerak"],
       trim: true,
+    },
+    category: {
+      type: String,
+      enum: ["economy", "luxury", "suv", "sports", "general"],
+      default: "general",
     },
     year: {
       type: Number,
@@ -140,5 +146,6 @@ carSchema.index({ pricePerDay: 1 });
 carSchema.index({ available: 1 });
 carSchema.index({ "location.city": 1 });
 carSchema.index({ createdAt: -1 });
+carSchema.index({ category: 1 });
 
 export default mongoose.models.Car || mongoose.model<ICar>("Car", carSchema);

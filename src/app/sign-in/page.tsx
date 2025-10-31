@@ -60,6 +60,9 @@ export default function LoginForm() {
       if (data.data) {
         localStorage.setItem("token", data.data.token);
         localStorage.setItem("user", JSON.stringify(data.data.user));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("auth-changed"));
+        }
 
         // Admin foydalanuvchini /admin sahifasiga yo‘naltiramiz
         if (data.data.user.role === "admin") {

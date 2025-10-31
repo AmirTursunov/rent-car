@@ -8,6 +8,7 @@ interface CarsQuery {
   page?: string;
   limit?: string;
   brand?: string;
+  category?: string;
   minPrice?: string;
   maxPrice?: string;
   available?: string;
@@ -29,12 +30,15 @@ export async function GET(
     const page = parseInt(query.page || "1");
     const limit = parseInt(query.limit || "10");
 
-    // Filter yaratish - admin uchun barcha mashinalar, oddiy foydalanuvchi uchun faqat mavjud
+    // Filter: default bo'yicha faqat available=true qaytariladi
     const filter: any = {};
-    
-    // Admin emas bo'lsa, faqat mavjud mashinalarni ko'rsat
-    if (query.admin !== "true") {
-      filter.available = true;
+    const wantAvailable = (query.available ?? "true").toLowerCase();
+    if (wantAvailable === "true") {
+      filter.$or = [
+        { available: true },
+        { available: "true" },
+        { available: 1 },
+      ];
     }
 
     if (query.brand) {
@@ -45,6 +49,10 @@ export async function GET(
       filter.pricePerDay = {};
       if (query.minPrice) filter.pricePerDay.$gte = parseInt(query.minPrice);
       if (query.maxPrice) filter.pricePerDay.$lte = parseInt(query.maxPrice);
+    }
+
+    if (query.category && query.category !== "all") {
+      filter.category = query.category;
     }
 
     if (query.city) {
@@ -65,12 +73,29 @@ export async function GET(
 
     const skip = (page - 1) * limit;
 
-    const cars = await Car.find(filter)
+    let cars = await Car.find(filter)
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
 
-    const total = await Car.countDocuments(filter);
+    let total = await Car.countDocuments(filter);
+
+    // Fallback: agar available filtri bilan hech narsa topilmasa, barcha mashinalarni qaytarib ko'ramiz
+    let fallbackAll = false;
+    if (cars.length === 0) {
+      const allFilter: any = { ...filter };
+      delete allFilter.available;
+      delete allFilter.$or;
+      const tryAll = await Car.find(allFilter)
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 });
+      if (tryAll.length > 0) {
+        cars = tryAll;
+        total = await Car.countDocuments(allFilter);
+        fallbackAll = true;
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -83,6 +108,7 @@ export async function GET(
           total,
           limit,
         },
+        meta: { fallbackAll, appliedFilter: filter },
       },
     });
   } catch (error) {
@@ -121,6 +147,7 @@ export async function POST(
     const requiredFields = [
       "brand",
       "carModel",
+      "category",
       "year",
       "color",
       "fuelType",

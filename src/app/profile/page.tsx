@@ -1,26 +1,38 @@
 "use client";
 import { useEffect, useState } from "react";
+import { User as UserIcon, Mail, Phone, Loader2 } from "lucide-react";
+import { useToast } from "@/components/context/ToastContext";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+}
 
 export default function ProfilePage() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     async function fetchProfile() {
       try {
         setLoading(true);
-        const res = await fetch("/api/profile");
+        const token =
+          typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        const res = await fetch("/api/profile", {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
         if (!res.ok) {
           setError("Autentifikatsiya kerak");
           return;
         }
         const json = await res.json();
-        if (json.success) {
-          setUser(json.data.user);
-        }
-      } catch (err) {
-        console.error("Error fetching profile:", err);
+        if (json.success) setUser(json.data.user);
+      } catch {
         setError("Profil yuklanmadi");
       } finally {
         setLoading(false);
@@ -29,13 +41,48 @@ export default function ProfilePage() {
     fetchProfile();
   }, []);
 
+  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const formData = new FormData(e.currentTarget);
+      const payload = {
+        name: formData.get("name"),
+        phone: formData.get("phone"),
+        email: formData.get("email"),
+      };
+
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success)
+        throw new Error(json.error || json.message || "Saqlashda xatolik");
+
+      setUser(json.data.user);
+      showToast("Profil muvaffaqiyatli saqlandi", "success");
+    } catch {
+      setError("Saqlashda xatolik");
+      showToast("Saqlashda xatolik yuz berdi", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loading) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Profil</h1>
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Yuklanmoqda...</p>
+      <div className="min-h-screen flex flex-col pt-24">
+        <div className="flex-1 flex flex-col items-center justify-center py-24 text-center">
+          <Loader2 className="animate-spin w-10 h-10 text-gray-600" />
+          <p className="mt-4 text-gray-500">Profil yuklanmoqda...</p>
         </div>
       </div>
     );
@@ -43,28 +90,86 @@ export default function ProfilePage() {
 
   if (error || !user) {
     return (
-      <div className="space-y-3">
-        <h1 className="text-2xl font-semibold">Profil</h1>
-        <p className="text-gray-600">Profilni ko'rish uchun tizimga kiring.</p>
-        <a href="/sign-in" className="inline-block bg-black text-white px-4 py-2 rounded">Kirish</a>
+      <div className="min-h-screen flex flex-col pt-24">
+        <div className="flex-1 flex flex-col items-center justify-center py-24 text-center">
+          <h1 className="text-2xl font-semibold mb-2">Profil topilmadi</h1>
+          <p className="text-gray-600 mb-4">
+            Profilni ko‘rish uchun tizimga kiring.
+          </p>
+          <a
+            href="/sign-in"
+            className="px-5 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+          >
+            Kirish
+          </a>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Profil</h1>
-      <form action="/api/profile" method="put" className="space-y-3 max-w-md">
-        <div className="space-y-1">
-          <label className="text-sm text-gray-600">Ism</label>
-          <input name="name" defaultValue={user.name} className="w-full border rounded px-3 py-2 text-sm" />
+    <div className="min-h-screen flex flex-col ">
+      <section className="flex-1 flex items-center justify-center">
+        <div className="w-full max-w-lg bg-white rounded-2xl shadow-md border border-gray-100 p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-gray-100">
+              <UserIcon className="text-gray-600" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-800">Profil</h1>
+              <p className="text-sm text-gray-500">Shaxsiy maʼlumotlaringiz</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSave} className="space-y-4">
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">Ism</label>
+              <div className="relative">
+                <UserIcon className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                <input
+                  name="name"
+                  defaultValue={user.name}
+                  className="w-full pl-9 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                <input
+                  name="email"
+                  defaultValue={user.email}
+                  className="w-full pl-9 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">
+                Telefon
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                <input
+                  name="phone"
+                  defaultValue={user.phone}
+                  className="w-full pl-9 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                />
+              </div>
+            </div>
+
+            <button
+              disabled={saving}
+              className="w-full bg-black text-white py-2.5 rounded-lg font-medium hover:bg-gray-800 transition flex items-center justify-center gap-2 disabled:opacity-70"
+            >
+              {saving && <Loader2 className="animate-spin w-4 h-4" />}
+              {saving ? "Saqlanmoqda..." : "Saqlash"}
+            </button>
+          </form>
         </div>
-        <div className="space-y-1">
-          <label className="text-sm text-gray-600">Telefon</label>
-          <input name="phone" defaultValue={user.phone} className="w-full border rounded px-3 py-2 text-sm" />
-        </div>
-        <button className="bg-black text-white px-4 py-2 rounded">Saqlash</button>
-      </form>
+      </section>
     </div>
   );
 }
