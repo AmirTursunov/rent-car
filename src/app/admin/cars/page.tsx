@@ -27,6 +27,7 @@ interface CarData {
   available: boolean;
   rating: { average: number; count: number };
   location: { city: string; address: string };
+  count?: number;
 }
 
 const AdminCarsPage: React.FC = () => {
@@ -93,7 +94,6 @@ const AdminCarsPage: React.FC = () => {
     }
   };
 
-  // ✅ Rasmni faqat saqlash bosilganda yuklaymiz (bu funksiya faqat preview va faylni saqlaydi)
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -115,10 +115,9 @@ const AdminCarsPage: React.FC = () => {
   };
 
   const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault(); // ✅ Formni prevent qilish
+    e.preventDefault();
     setError(null);
 
-    // Validation
     if (!formData.brand || !formData.carModel) {
       setError("Marka va Model to'ldirilishi shart!");
       return;
@@ -155,9 +154,6 @@ const AdminCarsPage: React.FC = () => {
       const url = selectedCar ? `/api/cars/${selectedCar._id}` : "/api/cars";
       const method = selectedCar ? "PUT" : "POST";
 
-      console.log("📤 Yuborilmoqda:", formData);
-
-      // Agar yangi fayl tanlangan bo'lsa, avval uni yuklaymiz
       let imagesToSend = formData.images || [];
       if (selectedFile) {
         try {
@@ -192,7 +188,6 @@ const AdminCarsPage: React.FC = () => {
       });
 
       const data = await response.json();
-      console.log("📥 Javob:", data);
 
       if (!response.ok) {
         throw new Error(data.error || data.message || "Saqlashda xatolik");
@@ -203,6 +198,14 @@ const AdminCarsPage: React.FC = () => {
         setImagePreview("");
         setSelectedFile(null);
         setSelectedCar(null);
+
+        // ✅ Avtomatik "Band" bo‘limiga o‘tish
+        if (formData.available === false) {
+          setFilterAvailable("unavailable");
+        } else {
+          setFilterAvailable("available");
+        }
+
         fetchCars();
         alert(selectedCar ? "Mashina yangilandi!" : "Mashina qo'shildi!");
       }

@@ -5,13 +5,12 @@ import Link from "next/link";
 import {
   Search,
   SlidersHorizontal,
-  Star,
   Heart,
   Users,
   Fuel,
   Settings,
   ArrowRight,
-  X,
+  Droplet,
   MapPin,
 } from "lucide-react";
 
@@ -29,6 +28,7 @@ interface Car {
   seats: number;
   available: boolean;
   location: string;
+  color: string;
 }
 
 const CarsListingPage = () => {
@@ -36,7 +36,7 @@ const CarsListingPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [likedCars, setLikedCars] = useState<Set<string>>(new Set());
+  // const [likedCars, setLikedCars] = useState<Set<string>>(new Set());
   const formatSom = (value: number) =>
     new Intl.NumberFormat("uz-UZ").format(value);
 
@@ -102,6 +102,7 @@ const CarsListingPage = () => {
             typeof c.location === "string"
               ? c.location
               : c.location?.city ?? "",
+          color: c.color ?? "Noma’lum",
         }));
 
         if (filters.search) {
@@ -163,14 +164,14 @@ const CarsListingPage = () => {
     }
   };
 
-  const toggleLike = (carId: string) => {
-    setLikedCars((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(carId)) newSet.delete(carId);
-      else newSet.add(carId);
-      return newSet;
-    });
-  };
+  // const toggleLike = (carId: string) => {
+  //   setLikedCars((prev) => {
+  //     const newSet = new Set(prev);
+  //     if (newSet.has(carId)) newSet.delete(carId);
+  //     else newSet.add(carId);
+  //     return newSet;
+  //   });
+  // };
 
   const categories = [
     { id: "all", name: "Barchasi", icon: "🚗" },
@@ -267,7 +268,7 @@ const CarsListingPage = () => {
                   alt={`${car.brand} ${car.model}`}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                 />
-                <button
+                {/* <button
                   onClick={() => toggleLike(car._id)}
                   className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                     likedCars.has(car._id)
@@ -280,7 +281,7 @@ const CarsListingPage = () => {
                       likedCars.has(car._id) ? "fill-current" : ""
                     }`}
                   />
-                </button>
+                </button> */}
               </div>
 
               <div className="p-6">
@@ -313,6 +314,10 @@ const CarsListingPage = () => {
                   <div className="flex items-center gap-1.5 text-gray-400">
                     <Fuel className="w-4 h-4 text-yellow-400" />
                     <span className="text-sm capitalize">{car.fuelType}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-gray-400">
+                    <Droplet className="w-4 h-4 text-yellow-400" />
+                    <span className="text-sm capitalize">{car.color}</span>
                   </div>
                 </div>
 

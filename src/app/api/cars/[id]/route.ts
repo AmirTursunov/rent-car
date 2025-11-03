@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
+import "@/models/User"; // ensure User schema is registered for populate
 import Car from "@/models/Car";
 import { verifyToken } from "@/lib/auth";
 import { ApiResponse } from "@/types";
 
-// ====== GET /api/cars/[id] ======
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = params;
+    // Next.js warning: await params before using its properties
+    const { id } = (await params) as { id?: string };
 
     if (!id) {
       return NextResponse.json(
@@ -55,13 +56,12 @@ export async function GET(
   }
 }
 
-// ====== PUT /api/cars/[id] ======
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = params;
+    const { id } = (await params) as { id?: string };
 
     if (!id) {
       return NextResponse.json(
@@ -123,13 +123,12 @@ export async function PUT(
   }
 }
 
-// ====== DELETE /api/cars/[id] ======
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = params;
+    const { id } = (await params) as { id?: string };
 
     if (!id) {
       return NextResponse.json(

@@ -11,6 +11,7 @@ export interface ICar extends Document {
   transmission: "manual" | "avtomat";
   seats: number;
   pricePerDay: number;
+  count?: number;
   images: string[];
   features: string[];
   description?: string;
@@ -83,6 +84,12 @@ const carSchema = new Schema<ICar>(
       type: Number,
       required: [true, "Kunlik narxi kiritilishi kerak"],
       min: [0, "Narx 0 dan kichik bo'lmasligi kerak"],
+    },
+    count: {
+      type: Number,
+      required: [true, "Mashina soni kiritilishi kerak"],
+      min: [1, "Kamida 1 ta mashina bo'lishi kerak"],
+      default: 1,
     },
     images: [
       {

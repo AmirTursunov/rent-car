@@ -4,16 +4,16 @@ import Car from "@/models/Car";
 import { verifyToken } from "@/lib/auth";
 import { ApiResponse } from "@/types";
 
+// 🔹 GET /api/cars/[id]
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  context: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
+    const { id } = context.params; // ✅ Promise emas, shunchaki obyekt
     await connectDB();
-    const car = await Car.findById(params.id).populate(
-      "owner",
-      "name email phone"
-    );
+
+    const car = await Car.findById(id).populate("owner", "name email phone");
 
     if (!car) {
       return NextResponse.json(
@@ -44,9 +44,10 @@ export async function GET(
   }
 }
 
+// 🔹 PUT /api/cars/[id]
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
     const user = await verifyToken(request);
@@ -61,10 +62,11 @@ export async function PUT(
       );
     }
 
+    const { id } = context.params;
     await connectDB();
     const updateData = await request.json();
 
-    const car = await Car.findByIdAndUpdate(params.id, updateData, {
+    const car = await Car.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
     });
@@ -98,9 +100,10 @@ export async function PUT(
   }
 }
 
+// 🔹 DELETE /api/cars/[id]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
     const user = await verifyToken(request);
@@ -115,8 +118,10 @@ export async function DELETE(
       );
     }
 
+    const { id } = context.params;
     await connectDB();
-    const car = await Car.findByIdAndDelete(params.id);
+
+    const car = await Car.findByIdAndDelete(id);
 
     if (!car) {
       return NextResponse.json(

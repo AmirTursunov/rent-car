@@ -9,6 +9,7 @@ import {
   Clock,
   Search,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface Payment {
   _id: string;
@@ -22,6 +23,7 @@ interface Payment {
 }
 
 const AdminPaymentsPage = () => {
+  const router = useRouter();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,34 +31,30 @@ const AdminPaymentsPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState("all");
 
-  const getToken = () => {
-    return typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  };
+  const getToken = () =>
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   const fetchPayments = async () => {
     try {
       setLoading(true);
       setError(null);
-
       const token = getToken();
+
       if (!token) {
         setError("Token topilmadi");
         setLoading(false);
         return;
       }
 
-      const response = await fetch("/api/payments", {
+      const res = await fetch("/api/payments", {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) throw new Error("Yuklab bo‘lmadi");
 
-      if (!response.ok) throw new Error("Yuklab bo'lmadi");
-
-      const data = await response.json();
-      if (data.success) {
-        setPayments(data.data.payments || []);
-      }
+      const data = await res.json();
+      if (data.success) setPayments(data.data.payments || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Xatolik");
+      setError(err instanceof Error ? err.message : "Xatolik yuz berdi");
     } finally {
       setLoading(false);
     }
@@ -115,16 +113,15 @@ const AdminPaymentsPage = () => {
     );
   };
 
-  const filteredPayments = payments.filter((payment) => {
+  const filteredPayments = payments.filter((p) => {
     const matchesSearch =
-      payment.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      p.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.user.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus =
-      statusFilter === "all" || payment.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || p.status === statusFilter;
     const matchesMethod =
-      methodFilter === "all" || payment.paymentMethod === methodFilter;
+      methodFilter === "all" || p.paymentMethod === methodFilter;
 
     return matchesSearch && matchesStatus && matchesMethod;
   });
@@ -137,13 +134,12 @@ const AdminPaymentsPage = () => {
     .filter((p) => p.status === "pending")
     .reduce((sum, p) => sum + p.amount, 0);
 
-  if (loading) {
+  if (loading)
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600" />
       </div>
     );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -151,8 +147,8 @@ const AdminPaymentsPage = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">To'lovlar</h1>
-            <p className="text-gray-600 mt-1">Barcha to'lovlarni boshqarish</p>
+            <h1 className="text-3xl font-bold text-gray-900">To‘lovlar</h1>
+            <p className="text-gray-600 mt-1">Barcha to‘lovlarni boshqarish</p>
           </div>
           <button
             onClick={fetchPayments}
@@ -163,7 +159,7 @@ const AdminPaymentsPage = () => {
           </button>
         </div>
 
-        {/* Error Alert */}
+        {/* Error */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
             <AlertCircle className="w-5 h-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
@@ -180,12 +176,12 @@ const AdminPaymentsPage = () => {
           </div>
         )}
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Jami to'lovlar</p>
+                <p className="text-sm text-gray-600">Jami to‘lovlar</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
                   {payments.length}
                 </p>
@@ -193,11 +189,10 @@ const AdminPaymentsPage = () => {
               <DollarSign className="w-10 h-10 text-blue-600" />
             </div>
           </div>
-
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">To'langan summa</p>
+                <p className="text-sm text-gray-600">To‘langan summa</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">
                   ${totalAmount.toLocaleString()}
                 </p>
@@ -205,7 +200,6 @@ const AdminPaymentsPage = () => {
               <CheckCircle className="w-10 h-10 text-green-600" />
             </div>
           </div>
-
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -232,7 +226,6 @@ const AdminPaymentsPage = () => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -241,12 +234,11 @@ const AdminPaymentsPage = () => {
               <option value="all">Barcha statuslar</option>
               <option value="pending">Kutilmoqda</option>
               <option value="processing">Jarayonda</option>
-              <option value="completed">To'langan</option>
+              <option value="completed">To‘langan</option>
               <option value="failed">Muvaffaqiyatsiz</option>
               <option value="cancelled">Bekor qilingan</option>
               <option value="refunded">Qaytarilgan</option>
             </select>
-
             <select
               value={methodFilter}
               onChange={(e) => setMethodFilter(e.target.value)}
@@ -255,16 +247,16 @@ const AdminPaymentsPage = () => {
               <option value="all">Barcha usullar</option>
               <option value="card">Karta</option>
               <option value="cash">Naqd</option>
-              <option value="transfer">O'tkazma</option>
+              <option value="transfer">O‘tkazma</option>
             </select>
           </div>
         </div>
 
-        {/* Payments Table */}
-        {filteredPayments.length === 0 && !loading ? (
+        {/* Table */}
+        {filteredPayments.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">To'lovlar topilmadi</p>
+            <p className="text-gray-500 text-lg">To‘lovlar topilmadi</p>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -296,37 +288,30 @@ const AdminPaymentsPage = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredPayments.map((payment) => (
-                    <tr
-                      key={payment._id}
-                      className="hover:bg-gray-50 transition"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {payment.transactionId}
+                  {filteredPayments.map((p) => (
+                    <tr key={p._id} className="hover:bg-gray-50 transition">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {p.transactionId}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">
-                          {payment.user.name}
+                          {p.user.name}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {payment.user.email}
+                          {p.user.email}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        ${payment.amount.toLocaleString()}
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+                        {p.amount.toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">
-                        {payment.paymentMethod}
+                      <td className="px-6 py-4 text-sm text-gray-600 capitalize">
+                        {p.paymentMethod}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(payment.status)}
+                      <td className="px-6 py-4">{getStatusBadge(p.status)}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {new Date(p.createdAt).toLocaleDateString("uz-UZ")}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(payment.createdAt).toLocaleDateString(
-                          "uz-UZ"
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-6 py-4 text-sm">
                         <button className="text-blue-600 hover:text-blue-800 transition">
                           <Eye className="w-5 h-5" />
                         </button>

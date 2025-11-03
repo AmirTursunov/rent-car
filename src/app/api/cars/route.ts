@@ -29,21 +29,27 @@ export async function GET(
 
     const page = parseInt(query.page || "1");
     const limit = parseInt(query.limit || "10");
+    const skip = (page - 1) * limit;
 
-    // Filter: default bo'yicha faqat available=true qaytariladi
     const filter: any = {};
-    const wantAvailable = (query.available ?? "true").toLowerCase();
-    if (wantAvailable === "true") {
-      filter.$or = [
-        { available: true },
-        { available: "true" },
-        { available: 1 },
-      ];
+    const isAdmin = searchParams.get("admin") === "true";
+
+    // 🔧 1️⃣ admin bo‘lsa — hech qanday cheklov yo‘q (hamma mashinalar)
+    // oddiy foydalanuvchi bo‘lsa — default available=true
+    if (!isAdmin) {
+      const wantAvailable = (query.available ?? "true").toLowerCase();
+      if (wantAvailable === "true") filter.available = true;
+      else if (wantAvailable === "false") filter.available = false;
+    } else {
+      // agar admin ?available=false kiritgan bo‘lsa — faqat band mashinalar
+      if (query.available?.toLowerCase() === "false") filter.available = false;
+      else if (query.available?.toLowerCase() === "true")
+        filter.available = true;
+      // admin hech narsa kiritmasa — hammasini ko‘rsatadi
     }
 
-    if (query.brand) {
-      filter.brand = { $regex: query.brand, $options: "i" };
-    }
+    // 🔧 2️⃣ qolgan filterlar
+    if (query.brand) filter.brand = { $regex: query.brand, $options: "i" };
 
     if (query.minPrice || query.maxPrice) {
       filter.pricePerDay = {};
@@ -51,51 +57,23 @@ export async function GET(
       if (query.maxPrice) filter.pricePerDay.$lte = parseInt(query.maxPrice);
     }
 
-    if (query.category && query.category !== "all") {
+    if (query.category && query.category !== "all")
       filter.category = query.category;
-    }
 
-    if (query.city) {
+    if (query.city)
       filter["location.city"] = { $regex: query.city, $options: "i" };
-    }
 
-    if (query.fuelType) {
-      filter.fuelType = query.fuelType;
-    }
+    if (query.fuelType) filter.fuelType = query.fuelType;
+    if (query.transmission) filter.transmission = query.transmission;
+    if (query.seats) filter.seats = parseInt(query.seats);
 
-    if (query.transmission) {
-      filter.transmission = query.transmission;
-    }
-
-    if (query.seats) {
-      filter.seats = parseInt(query.seats);
-    }
-
-    const skip = (page - 1) * limit;
-
-    let cars = await Car.find(filter)
+    // 🔧 3️⃣ so‘rov va hisoblash
+    const cars = await Car.find(filter)
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
 
-    let total = await Car.countDocuments(filter);
-
-    // Fallback: agar available filtri bilan hech narsa topilmasa, barcha mashinalarni qaytarib ko'ramiz
-    let fallbackAll = false;
-    if (cars.length === 0) {
-      const allFilter: any = { ...filter };
-      delete allFilter.available;
-      delete allFilter.$or;
-      const tryAll = await Car.find(allFilter)
-        .skip(skip)
-        .limit(limit)
-        .sort({ createdAt: -1 });
-      if (tryAll.length > 0) {
-        cars = tryAll;
-        total = await Car.countDocuments(allFilter);
-        fallbackAll = true;
-      }
-    }
+    const total = await Car.countDocuments(filter);
 
     return NextResponse.json({
       success: true,
@@ -108,7 +86,7 @@ export async function GET(
           total,
           limit,
         },
-        meta: { fallbackAll, appliedFilter: filter },
+        meta: { appliedFilter: filter },
       },
     });
   } catch (error) {

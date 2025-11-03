@@ -10,7 +10,7 @@ interface UpdateStatusRequest {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // params endi Promise
 ): Promise<NextResponse<ApiResponse>> {
   try {
     const user = await verifyToken(request);
@@ -24,6 +24,9 @@ export async function PUT(
         { status: 403 }
       );
     }
+
+    // 🧩 params ni kutish kerak
+    const { id } = await context.params;
 
     await connectDB();
     const body: UpdateStatusRequest = await request.json();
@@ -42,7 +45,7 @@ export async function PUT(
     }
 
     const booking = await Booking.findByIdAndUpdate(
-      params.id,
+      id,
       { status },
       { new: true }
     )
