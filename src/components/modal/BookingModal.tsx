@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ManualPaymentModal from "./ManualPaymentModal";
 import {
   X,
@@ -12,7 +12,6 @@ import {
   DollarSign,
   Info,
   Clock,
-  RefreshCw,
 } from "lucide-react";
 
 interface BookingModalProps {
@@ -143,9 +142,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
 
         // Aks holda, to'lov yuborilgandan keyin kutish holatida qolamiz
         return id;
-      }
-
-      // 200 OK - yangilangan booking
+      } // 200 OK - yangilangan booking
       if (response.ok && data?.success && data.data?.booking?._id) {
         const id = data.data.booking._id;
         setCreatedBookingId(id);
@@ -216,28 +213,13 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
   };
 
   const checkBookingStatus = async () => {
-    if (!createdBookingId) {
-      setError("Booking ID yo'q");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-
+    if (!createdBookingId) return;
     try {
-      // 2 soniya kutish
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
       const token =
         typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      if (!token) {
-        setError("Tizimga kirish kerak");
-        return;
-      }
+      if (!token) return;
 
-      const url = `/api/bookings/${createdBookingId}`;
-      console.log("Checking booking status:", url);
-
-      const res = await fetch(url, {
+      const res = await fetch(`/api/bookings/${createdBookingId}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -245,15 +227,9 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
         },
       });
 
-      console.log("Booking status response:", res.status);
-
       const data = await res.json().catch(() => null);
-      console.log("Booking status data:", data);
-
       if (res.ok && data?.data?.booking) {
         const b = data.data.booking;
-        console.log("Booking object:", b);
-
         const approved =
           b.status === "approved" ||
           b.status === "confirmed" ||
@@ -261,45 +237,22 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
           b.isPaid === true ||
           b.paymentStatus === "confirmed" ||
           b.paymentStatus === "paid" ||
-          b.paymentStatus === "approved";
-
-        console.log(
-          "Is approved?",
-          approved,
-          "Status:",
-          b.status,
-          "Payment Status:",
-          b.paymentStatus
-        );
+          b.paymentStatus === "approved" ||
+          b.paymentStatus === "deposit_paid"; // backend verify sets this
 
         if (approved) {
           setAwaitingApproval(false);
           setStep(3);
           setError(null);
-          return;
         }
-
-        setError(
-          "To'lov hali tasdiqlanmadi. Iltimos, biroz kuting va qayta tekshiring."
-        );
-        return;
       }
-
-      if (res.status === 404) {
-        setError(
-          "Buyurtma topilmadi. Iltimos, sahifani yangilang va qayta urinib ko'ring."
-        );
-        return;
-      }
-
-      setError(data?.message || "Holatni olishda xatolik");
     } catch (err) {
+      // polling paytida xatoni UI’da ko‘rsatmaymiz
       console.error("Booking status check error:", err);
-      setError("Server bilan aloqa xatosi");
-    } finally {
-      setLoading(false);
     }
   };
+
+  // Avto-polling olib tashlandi — admin tasdiqlagach, user oynani yopib ochsa yoki keyinroq qaytsa step 3 ko'rinadi.
 
   if (!isOpen) return null;
 
@@ -307,7 +260,6 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
   const totalPrice = calculateTotalPrice();
   const depositPercent = calculateDepositPercent();
   const depositAmount = calculateDeposit();
-
   return (
     <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-yellow-400/30 shadow-[0_0_50px_rgba(251,191,36,0.3)]">
@@ -378,8 +330,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                 <p className="text-red-300 text-sm">{error}</p>
               </div>
             </div>
-          )}
-
+          )}{" "}
           {/* Mavjud booking ogohlantirish */}
           {existingBookingWarning && (
             <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
@@ -417,7 +368,6 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
               </div>
             </div>
           )}
-
           {/* Step 1: Ma'lumotlar */}
           {step === 1 && (
             <div className="space-y-6">
@@ -440,7 +390,6 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 focus:border-yellow-400 outline-none"
                   />
                 </div>
-
                 <div>
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
                     <Calendar className="w-4 h-4 text-yellow-400" />
@@ -461,8 +410,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                     }
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 focus:border-yellow-400 outline-none"
                   />
-                </div>
-
+                </div>{" "}
                 <div className="md:col-span-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
                     <MapPin className="w-4 h-4 text-yellow-400" />
@@ -484,7 +432,6 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                     * Mashina shu manzildan olinadi va qaytariladi
                   </p>
                 </div>
-
                 <div>
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
                     <FileText className="w-4 h-4 text-yellow-400" />
@@ -504,7 +451,6 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 placeholder-gray-500 focus:border-yellow-400 outline-none uppercase"
                   />
                 </div>
-
                 <div>
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
                     <FileText className="w-4 h-4 text-yellow-400" />
@@ -524,7 +470,6 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 placeholder-gray-500 focus:border-yellow-400 outline-none"
                   />
                 </div>
-
                 <div className="md:col-span-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
                     <Phone className="w-4 h-4 text-yellow-400" />
@@ -542,8 +487,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                     placeholder="+998 90 123 45 67"
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 placeholder-gray-500 focus:border-yellow-400 outline-none"
                   />
-                </div>
-
+                </div>{" "}
                 <div className="md:col-span-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
                     <FileText className="w-4 h-4 text-yellow-400" />
@@ -626,8 +570,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                 Davom etish
               </button>
             </div>
-          )}
-
+          )}{" "}
           {/* Step 2: Depozit To'lovi */}
           {step === 2 && (
             <div className="space-y-6">
@@ -635,7 +578,6 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                 <h3 className="text-xl font-bold text-yellow-400 mb-6">
                   Depozit to'lovi
                 </h3>
-
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-gray-300">
                     <span>Jami ijara narxi:</span>
@@ -658,7 +600,6 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                     </div>
                   </div>
                 </div>
-
                 <div className="space-y-3 mb-6">
                   <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
                     <p className="text-sm text-green-300 flex items-start gap-2">
@@ -682,7 +623,6 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                     </p>
                   </div>
                 </div>
-
                 {!awaitingApproval && (
                   <div className="grid grid-cols-2 gap-4">
                     <button
@@ -700,8 +640,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                       {loading ? "Yuklanmoqda..." : "To'lov usulini tanlash"}
                     </button>
                   </div>
-                )}
-
+                )}{" "}
                 {/* Kutish holati */}
                 {awaitingApproval && (
                   <div className="mt-6 p-5 bg-gradient-to-br from-yellow-400/20 to-orange-500/20 border-2 border-yellow-400/50 rounded-xl">
@@ -728,7 +667,6 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
               </div>
             </div>
           )}
-
           {/* Step 3: Tasdiqlash */}
           {step === 3 && (
             <div className="text-center py-12">
@@ -736,11 +674,18 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                 <CheckCircle className="w-12 h-12 text-white" />
               </div>
               <h3 className="text-3xl font-bold text-green-400 mb-4">
-                Muvaffaqiyatli!
+                {awaitingApproval ? "Yuborildi!" : "Muvaffaqiyatli!"}
               </h3>
-              <p className="text-gray-300 text-lg mb-4">
-                Depozit tasdiqlandi. Buyurtmangiz qabul qilindi.
-              </p>
+              {awaitingApproval ? (
+                <p className="text-gray-300 text-lg mb-4">
+                  To'lov ma'lumotlari muvaffaqiyatli yuborildi. Admin
+                  tasdiqlashi uchun 5-10 daqiqa kuting.
+                </p>
+              ) : (
+                <p className="text-gray-300 text-lg mb-4">
+                  Depozit tasdiqlandi. Buyurtmangiz qabul qilindi.
+                </p>
+              )}
               <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-xl p-4 mb-8 max-w-md mx-auto">
                 <p className="text-gray-300 text-sm leading-relaxed">
                   Tez orada sizga aloqaga chiqamiz. Mashina olish sanasi:{" "}
@@ -774,6 +719,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
           onSuccess={() => {
             setShowPaymentModal(false);
             setAwaitingApproval(true);
+            setStep(3);
           }}
         />
       )}

@@ -1,26 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
+import Booking from "@/models/Booking";
 import Car from "@/models/Car";
 import { verifyToken } from "@/lib/auth";
 import { ApiResponse } from "@/types";
 
-// 🔹 GET /api/cars/[id]
+// 🔹 GET /api/bookings/[id]
 export async function GET(
   _request: NextRequest,
   context: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = context.params; // ✅ Promise emas, shunchaki obyekt
+    const { id } = context.params;
     await connectDB();
 
-    const car = await Car.findById(id).populate("owner", "name email phone");
+    const booking = await Booking.findById(id)
+      .populate("user", "name email phone")
+      .populate(
+        "car",
+        "brand carModel year availableCount totalCount bookedCount"
+      );
 
-    if (!car) {
+    if (!booking) {
       return NextResponse.json(
         {
           success: false,
-          message: "Mashina topilmadi",
-          error: "Mashina topilmadi",
+          message: "Booking topilmadi",
+          error: "Booking topilmadi",
         },
         { status: 404 }
       );
@@ -28,35 +34,35 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      message: "Mashina ma'lumotlari olindi",
-      data: { car },
+      message: "Booking ma'lumotlari olindi",
+      data: { booking },
     });
   } catch (error) {
-    console.error("Get car error:", error);
+    console.error("Get booking error:", error);
     return NextResponse.json(
       {
         success: false,
         message: "Server xatosi",
-        error: "Mashina ma'lumotlarini olishda xatolik",
+        error: "Booking ma'lumotlarini olishda xatolik",
       },
       { status: 500 }
     );
   }
 }
 
-// 🔹 PUT /api/cars/[id]
+// 🔹 PUT /api/bookings/[id]
 export async function PUT(
   request: NextRequest,
   context: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
     const user = await verifyToken(request);
-    if (!user || user.role !== "admin") {
+    if (!user) {
       return NextResponse.json(
         {
           success: false,
           message: "Ruxsat yo'q",
-          error: "Ruxsat yo'q",
+          error: "Token noto'g'ri yoki mavjud emas",
         },
         { status: 403 }
       );
@@ -66,53 +72,109 @@ export async function PUT(
     await connectDB();
     const updateData = await request.json();
 
-    const car = await Car.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!car) {
+    // ✅ Admin yoki o'sha user o'zgartira oladi
+    const booking = await Booking.findById(id).populate("car");
+    if (!booking) {
       return NextResponse.json(
         {
           success: false,
-          message: "Mashina topilmadi",
-          error: "Mashina topilmadi",
+          message: "Booking topilmadi",
+          error: "Booking topilmadi",
         },
         { status: 404 }
       );
     }
 
+    if (user.role !== "admin" && booking.user.toString() !== user.userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Siz bu bookingni o'zgartira olmaysiz",
+          error: "Ruxsat yo'q",
+        },
+        { status: 403 }
+      );
+    }
+
+    const oldStatus = booking.status;
+    const newStatus = updateData.status;
+
+    // ✅ Status o'zgarganda count'ni boshqarish
+    if (oldStatus !== newStatus) {
+      const carId = booking.car._id;
+
+      // Booking completed bo'lganda - mashina qaytarildi
+      if (newStatus === "completed" && oldStatus !== "completed") {
+        await Car.findByIdAndUpdate(carId, {
+          $inc: {
+            availableCount: 1,
+            bookedCount: -1,
+          },
+          $set: {
+            available: true,
+          },
+        });
+      }
+
+      // Booking cancelled yoki rejected bo'lganda - mashina qaytarildi
+      if (
+        (newStatus === "cancelled" || newStatus === "rejected") &&
+        (oldStatus === "pending" || oldStatus === "approved")
+      ) {
+        await Car.findByIdAndUpdate(carId, {
+          $inc: {
+            availableCount: 1,
+            bookedCount: -1,
+          },
+          $set: {
+            available: true,
+          },
+        });
+      }
+
+      // Booking approved bo'lganda - hech narsa qilmaymiz (allaqachon band)
+      // Booking pending bo'lganda - allaqachon band qilingan
+    }
+
+    const updatedBooking = await Booking.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate(
+      "car",
+      "brand carModel year availableCount totalCount bookedCount"
+    );
+
     return NextResponse.json({
       success: true,
-      message: "Mashina muvaffaqiyatli yangilandi",
-      data: { car },
+      message: "Booking muvaffaqiyatli yangilandi",
+      data: { booking: updatedBooking },
     });
   } catch (error) {
-    console.error("Update car error:", error);
+    console.error("Update booking error:", error);
     return NextResponse.json(
       {
         success: false,
         message: "Server xatosi",
-        error: "Mashina yangilashda xatolik",
+        error: "Booking yangilashda xatolik",
       },
       { status: 500 }
     );
   }
 }
 
-// 🔹 DELETE /api/cars/[id]
+// 🔹 DELETE /api/bookings/[id]
 export async function DELETE(
   request: NextRequest,
   context: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
     const user = await verifyToken(request);
-    if (!user || user.role !== "admin") {
+    if (!user) {
       return NextResponse.json(
         {
           success: false,
           message: "Ruxsat yo'q",
-          error: "Ruxsat yo'q",
+          error: "Token noto'g'ri yoki mavjud emas",
         },
         { status: 403 }
       );
@@ -121,30 +183,56 @@ export async function DELETE(
     const { id } = context.params;
     await connectDB();
 
-    const car = await Car.findByIdAndDelete(id);
-
-    if (!car) {
+    const booking = await Booking.findById(id).populate("car");
+    if (!booking) {
       return NextResponse.json(
         {
           success: false,
-          message: "Mashina topilmadi",
-          error: "Mashina topilmadi",
+          message: "Booking topilmadi",
+          error: "Booking topilmadi",
         },
         { status: 404 }
       );
     }
 
+    // ✅ Faqat admin yoki o'sha user o'chira oladi
+    if (user.role !== "admin" && booking.user.toString() !== user.userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Siz bu bookingni o'chira olmaysiz",
+          error: "Ruxsat yo'q",
+        },
+        { status: 403 }
+      );
+    }
+
+    // ✅ Agar booking pending yoki approved bo'lsa, count'ni qaytarish
+    if (booking.status === "pending" || booking.status === "approved") {
+      await Car.findByIdAndUpdate(booking.car._id, {
+        $inc: {
+          availableCount: 1,
+          bookedCount: -1,
+        },
+        $set: {
+          available: true,
+        },
+      });
+    }
+
+    await Booking.findByIdAndDelete(id);
+
     return NextResponse.json({
       success: true,
-      message: "Mashina muvaffaqiyatli o'chirildi",
+      message: "Booking muvaffaqiyatli o'chirildi",
     });
   } catch (error) {
-    console.error("Delete car error:", error);
+    console.error("Delete booking error:", error);
     return NextResponse.json(
       {
         success: false,
         message: "Server xatosi",
-        error: "Mashina o'chirishda xatolik",
+        error: "Booking o'chirishda xatolik",
       },
       { status: 500 }
     );

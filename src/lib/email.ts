@@ -53,7 +53,7 @@ class EmailService {
       <p>Sizning buyurtmangiz muvaffaqiyatli tasdiqlandi:</p>
       <ul>
         <li><strong>Mashina:</strong> ${bookingData.car.brand} ${
-      bookingData.car.model
+      bookingData.car.carModel
     }</li>
         <li><strong>Boshlanish:</strong> ${new Date(
           bookingData.startDate
@@ -70,6 +70,47 @@ class EmailService {
     return this.sendEmail({
       to,
       subject: "Buyurtma tasdiqlandi - RentCar",
+      html,
+    });
+  }
+
+  // Buyurtma rad etish emaili
+  async sendBookingRejection(
+    to: string,
+    bookingData: any,
+    rejectionReason: string
+  ): Promise<boolean> {
+    const html = `
+      <h2>Hurmatli mijoz,</h2>
+      <p>Afsuski, sizning buyurtmangiz rad etildi.</p>
+      <p>Sizning buyurtmangiz tafsilotlari:</p>
+      <ul>
+        <li><strong>Mashina:</strong> ${bookingData.car.brand} ${
+      bookingData.car.carModel
+    }</li>
+        <li><strong>Boshlanish:</strong> ${new Date(
+          bookingData.startDate
+        ).toLocaleDateString()}</li>
+        <li><strong>Tugash:</strong> ${new Date(
+          bookingData.endDate
+        ).toLocaleDateString()}</li>
+        <li><strong>Jami narx:</strong> ${bookingData.totalPrice.toLocaleString()} so'm</li>
+      </ul>
+      <hr/>
+      <h3>Rad etish sababi:</h3>
+      <p style="background: #fee; padding: 15px; border-left: 4px solid #c00; border-radius: 4px;">
+        ${rejectionReason}
+      </p>
+      <hr/>
+      <p>Iltimos, muammoni tuzatib, qayta urinib ko'ring yoki qo'llab-quvvatlash xizmatiga murojaat qiling.</p>
+      <p><strong>Telefon:</strong> +998 XX XXX XX XX</p>
+      <br/>
+      <p>Hurmat bilan,<br/>Rent Car jamoasi</p>
+    `;
+
+    return this.sendEmail({
+      to,
+      subject: "Buyurtmangiz rad etildi - RentCar",
       html,
     });
   }

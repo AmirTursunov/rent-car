@@ -34,21 +34,28 @@ export async function GET(
     const filter: any = {};
     const isAdmin = searchParams.get("admin") === "true";
 
-    // 🔧 1️⃣ admin bo‘lsa — hech qanday cheklov yo‘q (hamma mashinalar)
-    // oddiy foydalanuvchi bo‘lsa — default available=true
+    // Admin bo'lsa - hamma mashinalar
+    // Oddiy foydalanuvchi - faqat mavjud mashinalar
     if (!isAdmin) {
       const wantAvailable = (query.available ?? "true").toLowerCase();
-      if (wantAvailable === "true") filter.available = true;
-      else if (wantAvailable === "false") filter.available = false;
-    } else {
-      // agar admin ?available=false kiritgan bo‘lsa — faqat band mashinalar
-      if (query.available?.toLowerCase() === "false") filter.available = false;
-      else if (query.available?.toLowerCase() === "true")
+      if (wantAvailable === "true") {
+        filter.availableCount = { $gt: 0 };
         filter.available = true;
-      // admin hech narsa kiritmasa — hammasini ko‘rsatadi
+      } else if (wantAvailable === "false") {
+        filter.availableCount = 0;
+        filter.available = false;
+      }
+    } else {
+      if (query.available?.toLowerCase() === "false") {
+        filter.availableCount = 0;
+        filter.available = false;
+      } else if (query.available?.toLowerCase() === "true") {
+        filter.availableCount = { $gt: 0 };
+        filter.available = true;
+      }
     }
 
-    // 🔧 2️⃣ qolgan filterlar
+    // Qolgan filterlar
     if (query.brand) filter.brand = { $regex: query.brand, $options: "i" };
 
     if (query.minPrice || query.maxPrice) {
@@ -67,7 +74,6 @@ export async function GET(
     if (query.transmission) filter.transmission = query.transmission;
     if (query.seats) filter.seats = parseInt(query.seats);
 
-    // 🔧 3️⃣ so‘rov va hisoblash
     const cars = await Car.find(filter)
       .skip(skip)
       .limit(limit)
@@ -119,7 +125,22 @@ export async function POST(
     }
 
     await connectDB();
-    const carData: Partial<CarType> = await request.json();
+    const carData: any = await request.json();
+
+    // count fieldini totalCount ga o'zgartirish (backward compatibility)
+    if (carData.count && !carData.totalCount) {
+      carData.totalCount = carData.count;
+    }
+
+    // availableCount ni totalCount bilan bir xil qilish (yangi mashina)
+    if (carData.totalCount && !carData.availableCount) {
+      carData.availableCount = carData.totalCount;
+    }
+
+    // bookedCount default 0
+    if (!carData.bookedCount) {
+      carData.bookedCount = 0;
+    }
 
     // Majburiy maydonlarni tekshirish
     const requiredFields = [
@@ -134,9 +155,10 @@ export async function POST(
       "pricePerDay",
       "images",
       "location",
+      "totalCount",
     ];
     const missingFields = requiredFields.filter(
-      (field) => !carData[field as keyof CarType]
+      (field) => !carData[field as keyof typeof carData]
     );
 
     if (missingFields.length > 0) {

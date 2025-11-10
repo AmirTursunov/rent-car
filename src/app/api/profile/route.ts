@@ -79,7 +79,23 @@ export async function PUT(
 
     // Yangilanish ma’lumotlarini olish
     const updateData = await request.json();
-    const { password, email, ...allowedFields } = updateData; // parol va email alohida endpointda
+    const { password, email, ...allowedFields } = updateData;
+
+    // Agar email yuborilgan bo'lsa, unikal va format tekshirish
+    if (email) {
+      const exists = await User.findOne({ email: String(email).toLowerCase() });
+      if (exists && String(exists._id) !== tokenUser.userId) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Bu email allaqachon band",
+            error: "Email already in use",
+          },
+          { status: 409 }
+        );
+      }
+      (allowedFields as any).email = String(email).toLowerCase();
+    }
 
     // Foydalanuvchini yangilash
     const user = await User.findByIdAndUpdate(tokenUser.userId, allowedFields, {
@@ -98,10 +114,21 @@ export async function PUT(
       );
     }
 
+    // Agar email o'zgargan bo'lsa, yangi token qaytaramiz
+    let token: string | undefined;
+    try {
+      const { generateToken } = await import("@/lib/auth");
+      token = generateToken({
+        userId: user._id.toString(),
+        email: user.email,
+        role: (tokenUser as any).role || "user",
+      });
+    } catch {}
+
     return NextResponse.json({
       success: true,
       message: "Profil muvaffaqiyatli yangilandi",
-      data: { user: sanitizeUser(user) },
+      data: { user: sanitizeUser(user), token },
     });
   } catch (err) {
     console.error("Update profile error:", err);

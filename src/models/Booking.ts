@@ -20,7 +20,13 @@ export interface IBooking extends Document {
     | "completed"
     | "cancelled"
     | "no_show";
-  paymentStatus: "pending" | "deposit_paid" | "fully_paid" | "refunded";
+  paymentStatus:
+    | "pending"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "cancelled"
+    | "refunded";
   bookingNumber: string;
   passport: {
     series: string;
@@ -102,7 +108,14 @@ const bookingSchema = new Schema<IBooking>(
     },
     paymentStatus: {
       type: String,
-      enum: ["pending", "deposit_paid", "fully_paid", "refunded"],
+      enum: [
+        "pending",
+        "deposit_paid",
+        "fully_paid",
+        "refunded",
+        "cancelled",
+        "failed",
+      ],
       default: "pending",
     },
     bookingNumber: {

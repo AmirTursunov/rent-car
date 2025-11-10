@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Upload,
   Image as ImageIcon,
+  Package,
 } from "lucide-react";
 
 interface CarData {
@@ -27,7 +28,10 @@ interface CarData {
   available: boolean;
   rating: { average: number; count: number };
   location: { city: string; address: string };
-  count?: number;
+  totalCount: number;
+  availableCount: number;
+  bookedCount: number;
+  zalog?: number;
 }
 
 const AdminCarsPage: React.FC = () => {
@@ -43,7 +47,7 @@ const AdminCarsPage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<Partial<CarData>>({
-    brand: "",
+    brand: "Chevrolet",
     carModel: "",
     category: "economy",
     year: new Date().getFullYear(),
@@ -55,6 +59,10 @@ const AdminCarsPage: React.FC = () => {
     available: true,
     images: [],
     location: { city: "Toshkent", address: "" },
+    totalCount: 1,
+    availableCount: 1,
+    bookedCount: 0,
+    zalog: 0,
   });
 
   useEffect(() => {
@@ -143,6 +151,11 @@ const AdminCarsPage: React.FC = () => {
       return;
     }
 
+    if (!formData.totalCount || formData.totalCount < 1) {
+      setError("Mashinalar soni kamida 1 ta bo'lishi kerak!");
+      return;
+    }
+
     try {
       setSaving(true);
       const token = getToken();
@@ -199,13 +212,6 @@ const AdminCarsPage: React.FC = () => {
         setSelectedFile(null);
         setSelectedCar(null);
 
-        // ✅ Avtomatik "Band" bo‘limiga o‘tish
-        if (formData.available === false) {
-          setFilterAvailable("unavailable");
-        } else {
-          setFilterAvailable("available");
-        }
-
         fetchCars();
         alert(selectedCar ? "Mashina yangilandi!" : "Mashina qo'shildi!");
       }
@@ -244,8 +250,8 @@ const AdminCarsPage: React.FC = () => {
       car.carModel.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter =
       filterAvailable === "all" ||
-      (filterAvailable === "available" && car.available) ||
-      (filterAvailable === "unavailable" && !car.available);
+      (filterAvailable === "available" && car.availableCount > 0) ||
+      (filterAvailable === "unavailable" && car.availableCount === 0);
     return matchesSearch && matchesFilter;
   });
 
@@ -282,7 +288,7 @@ const AdminCarsPage: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold">Mashinalar</h2>
           <p className="text-gray-500 text-sm">
-            Jami: <strong>{cars.length}</strong> ta
+            Jami: <strong>{cars.length}</strong> ta model
           </p>
         </div>
         <button
@@ -290,7 +296,7 @@ const AdminCarsPage: React.FC = () => {
             setSelectedCar(null);
             setImagePreview("");
             setFormData({
-              brand: "",
+              brand: "Chevrolet",
               carModel: "",
               category: "economy",
               year: new Date().getFullYear(),
@@ -302,6 +308,10 @@ const AdminCarsPage: React.FC = () => {
               available: true,
               images: [],
               location: { city: "Toshkent", address: "" },
+              totalCount: 1,
+              availableCount: 1,
+              bookedCount: 0,
+              zalog: 0,
             });
             setShowAddModal(true);
           }}
@@ -332,7 +342,7 @@ const AdminCarsPage: React.FC = () => {
           >
             <option value="all">Barchasi</option>
             <option value="available">Mavjud</option>
-            <option value="unavailable">Band</option>
+            <option value="unavailable">Hammasi band</option>
           </select>
 
           <div className="flex items-center justify-end">
@@ -358,15 +368,26 @@ const AdminCarsPage: React.FC = () => {
                   e.currentTarget.src = "https://via.placeholder.com/400";
                 }}
               />
+
+              {/* Count Badge */}
+              <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-white/90 shadow">
+                <Package className="w-3 h-3" />
+                <span className="text-green-600">{car.availableCount}</span>
+                <span className="text-gray-400">/</span>
+                <span className="text-gray-700">{car.totalCount}</span>
+              </div>
+
+              {/* Availability Badge */}
               <span
                 className={`absolute top-2 right-2 px-3 py-1 rounded-full text-xs font-medium ${
-                  car.available
+                  car.availableCount > 0
                     ? "bg-green-100 text-green-700"
                     : "bg-red-100 text-red-700"
                 }`}
               >
-                {car.available ? "Mavjud" : "Band"}
+                {car.availableCount > 0 ? "Mavjud" : "Hammasi band"}
               </span>
+
               {car.category && (
                 <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700">
                   {car.category}
@@ -387,6 +408,16 @@ const AdminCarsPage: React.FC = () => {
                 <div>⛽ {car.fuelType}</div>
                 <div>👥 {car.seats} o'rindiq</div>
                 <div>📍 {car.location.city}</div>
+                <div>💰 Zalog: {car.zalog?.toLocaleString()} so'm</div>
+                <div className="flex items-center gap-1">
+                  <span
+                    className={
+                      car.bookedCount > 0 ? "text-orange-600 font-semibold" : ""
+                    }
+                  >
+                    🚗 Band: {car.bookedCount}
+                  </span>
+                </div>
               </div>
 
               <div className="border-t pt-3 flex items-center justify-between">
@@ -403,7 +434,7 @@ const AdminCarsPage: React.FC = () => {
                       setSelectedCar(car);
                       setFormData({
                         ...car,
-                        category: (car as any).category || "economy",
+                        category: car.category || "economy",
                       });
                       setImagePreview(car.images[0] || "");
                       setShowAddModal(true);
@@ -432,7 +463,7 @@ const AdminCarsPage: React.FC = () => {
         </div>
       )}
 
-      {/* ✅ Modal - form tag bilan */}
+      {/* Modal - Formada totalCount field qo'shildi */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -452,9 +483,8 @@ const AdminCarsPage: React.FC = () => {
               </button>
             </div>
 
-            {/* ✅ Form tag */}
             <form onSubmit={handleSave} className="p-6 space-y-4">
-              {/* Image Upload Section */}
+              {/* Image Upload */}
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
                 <div className="text-center">
                   {imagePreview || formData.images?.[0] ? (
@@ -512,6 +542,7 @@ const AdminCarsPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Form Fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">
@@ -583,6 +614,35 @@ const AdminCarsPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">
+                    Jami mashinalar soni *
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.totalCount || ""}
+                    onChange={(e) => {
+                      const newTotal = e.target.value
+                        ? parseInt(e.target.value)
+                        : 1;
+                      setFormData({
+                        ...formData,
+                        totalCount: newTotal,
+                        // Yangi mashina qo'shilayotganda availableCount = totalCount
+                        ...(!selectedCar && {
+                          availableCount: newTotal,
+                          bookedCount: 0,
+                        }),
+                      });
+                    }}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    min="1"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Bu model mashinalarning jami soni
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
                     Rangi *
                   </label>
                   <input
@@ -644,6 +704,25 @@ const AdminCarsPage: React.FC = () => {
                     className="w-full px-3 py-2 border rounded-lg"
                     min="2"
                     max="9"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Zalog (Kafolat puli) *
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.zalog || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        zalog: e.target.value ? parseInt(e.target.value) : 0,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="150000"
+                    min="0"
                     required
                   />
                 </div>
@@ -712,17 +791,38 @@ const AdminCarsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.available || false}
-                  onChange={(e) =>
-                    setFormData({ ...formData, available: e.target.checked })
-                  }
-                  className="w-4 h-4"
-                />
-                <label className="ml-2 text-sm">Mavjud (ijarada emas)</label>
-              </div>
+              {/* Agar tahrirlash rejimida bo'lsa, count ma'lumotlarini ko'rsatish */}
+              {selectedCar && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm font-semibold text-blue-800 mb-2">
+                    Mashinalar holati:
+                  </p>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Jami:</span>
+                      <span className="ml-2 font-bold text-gray-900">
+                        {formData.totalCount}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Mavjud:</span>
+                      <span className="ml-2 font-bold text-green-600">
+                        {formData.availableCount}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Band:</span>
+                      <span className="ml-2 font-bold text-orange-600">
+                        {formData.bookedCount}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    * Jami sonni o'zgartirish faqat mavjud mashinalar soniga
+                    ta'sir qiladi
+                  </p>
+                </div>
+              )}
 
               <div className="flex justify-end space-x-3 pt-4 border-t">
                 <button
@@ -732,19 +832,19 @@ const AdminCarsPage: React.FC = () => {
                     setSelectedCar(null);
                     setImagePreview("");
                   }}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
                 >
-                  Bekor
+                  Bekor qilish
                 </button>
                 <button
                   type="submit"
-                  disabled={uploadingImage || saving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={saving || uploadingImage}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
                 >
-                  {(uploadingImage || saving) && (
-                    <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  {saving && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   )}
-                  {saving || uploadingImage ? "Yuklanmoqda..." : "Saqlash"}
+                  <span>{selectedCar ? "Saqlash" : "Qo'shish"}</span>
                 </button>
               </div>
             </form>

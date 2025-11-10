@@ -1,15 +1,13 @@
 // app/cars/[id]/page.tsx
 "use client";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { redirect, useParams } from "next/navigation";
 import BookingModal from "../../../components/modal/BookingModal";
 import {
-  Star,
   MapPin,
   Users,
   Fuel,
   Settings,
-  Calendar,
   Shield,
   CheckCircle,
 } from "lucide-react";
@@ -273,7 +271,7 @@ export default function CarDetailPage() {
       {showBookingModal && (
         <BookingModal
           isOpen={showBookingModal}
-          onClose={() => setShowBookingModal(false)}
+          onClose={() => redirect("/bookings")}
           car={{
             _id: car._id,
             brand: car.brand,

@@ -1,68 +1,99 @@
-// app/api/admin/payments/verify/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "../../../../../lib/mongodb";
+import { connectDB } from "@/lib/mongodb";
 import Payment from "@/models/Payment";
 import Booking from "@/models/Booking";
-import jwt from "jsonwebtoken";
+import Car from "@/models/Car";
+import { verifyToken } from "@/lib/auth";
+import nodemailer from "nodemailer";
 
-const verifyAdmin = (request: NextRequest) => {
-  try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-
-    const token = authHeader.split(" ")[1];
-    const decoded: any = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "your-secret-key"
-    );
-
-    if (decoded.role !== "admin") return null;
-    return decoded;
-  } catch (error) {
-    return null;
-  }
-};
+// Email transporter
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const admin = verifyAdmin(request);
-    if (!admin) {
+    const user = await verifyToken(request);
+    if (!user || user.role !== "admin") {
       return NextResponse.json(
-        { success: false, message: "Admin huquqi kerak" },
+        { success: false, message: "Faqat admin tasdiqlashi mumkin" },
         { status: 403 }
       );
     }
 
+    // ✅ params.id ni await bilan olish
+    const { id } = await params;
+
+    const { approved, reason } = await request.json();
+
     await connectDB();
 
-    const { approved } = await request.json();
-    const { id: paymentId } = params;
+    const payment = await Payment.findById(id)
+      .populate("user", "name email")
+      .populate({
+        path: "booking",
+        populate: { path: "car", select: "brand carModel year pricePerDay" },
+      });
 
-    // Payment ni topish
-    const payment = await Payment.findById(paymentId);
     if (!payment) {
       return NextResponse.json(
-        { success: false, message: "Payment topilmadi" },
+        { success: false, message: "To'lov topilmadi" },
         { status: 404 }
       );
     }
 
     if (approved) {
-      // Tasdiqlash
+      // ✅ To'lovni tasdiqlash
       payment.status = "completed";
-      payment.paidAt = new Date();
+      payment.verifiedAt = new Date();
+      payment.verifiedBy = user.userId;
       await payment.save();
 
-      // Booking ni yangilash
-      await Booking.findByIdAndUpdate(payment.booking, {
-        paymentStatus: "deposit_paid",
-        paidAmount: payment.amount,
-        status: "confirmed",
-        confirmedAt: new Date(),
-      });
+      // Booking'ni tasdiqlash
+      if (payment.booking) {
+        await Booking.findByIdAndUpdate(payment.booking._id, {
+          status: "approved",
+          paymentStatus: "confirmed",
+        });
+      }
+
+      // Email yuborish
+      try {
+        const bookingData = payment.booking;
+        await transporter.sendMail({
+          from: process.env.SMTP_USER,
+          to: payment.user.email,
+          subject: "Buyurtmangiz tasdiqlandi - Rent Car",
+          html: `
+            <h2>Buyurtmangiz tasdiqlandi!</h2>
+            <p>Hurmatli ${payment.user.name},</p>
+            <p>Sizning buyurtmangiz muvaffaqiyatli tasdiqlandi:</p>
+            <ul>
+              <li><strong>Mashina:</strong> ${bookingData.car.brand} ${
+            bookingData.car.carModel
+          } (${bookingData.car.year || ""})</li>
+              <li><strong>Boshlanish:</strong> ${new Date(
+                bookingData.startDate
+              ).toLocaleDateString("uz-UZ")}</li>
+              <li><strong>Tugash:</strong> ${new Date(
+                bookingData.endDate
+              ).toLocaleDateString("uz-UZ")}</li>
+              <li><strong>Jami narx:</strong> ${bookingData.totalPrice.toLocaleString()} so'm</li>
+            </ul>
+            <p>Biz siz bilan tez orada bog'lanamiz.</p>
+            <p>Rahmat!</p>
+          `,
+        });
+      } catch (emailError) {
+        console.error("Email sending error:", emailError);
+      }
 
       return NextResponse.json({
         success: true,
@@ -70,70 +101,72 @@ export async function POST(
         data: { payment },
       });
     } else {
-      // Rad etish
-      payment.status = "failed";
-      payment.failureReason = "Admin tomonidan rad etildi";
+      // ❌ To'lovni rad etish
+      payment.status = "cancelled";
+      payment.reason = reason;
+      payment.verifiedAt = new Date();
+      payment.verifiedBy = user.userId;
       await payment.save();
 
-      // Booking ni yangilash
-      await Booking.findByIdAndUpdate(payment.booking, {
-        paymentStatus: "pending",
-        status: "cancelled",
-      });
+      if (payment.booking) {
+        const booking = await Booking.findById(payment.booking._id).populate(
+          "car"
+        );
+        if (booking) {
+          booking.status = "cancelled";
+          booking.paymentStatus = "cancelled";
+          booking.reason = reason;
+          await booking.save();
+
+          if (booking.car) {
+            await Car.findByIdAndUpdate(booking.car._id, {
+              $inc: { availableCount: 1, bookedCount: -1 },
+              $set: { available: true },
+            });
+          }
+        }
+      }
+
+      // Rad etish emaili
+      try {
+        await transporter.sendMail({
+          from: process.env.SMTP_USER,
+          to: payment.user.email,
+          subject: "To'lovingiz rad etildi - Rent Car",
+          html: `
+            <h2>To'lovingiz rad etildi</h2>
+            <p>Hurmatli ${payment.user.name},</p>
+            <p>Afsuski, sizning to'lovingiz rad etildi:</p>
+            <ul>
+              <li><strong>Summa:</strong> ${payment.amount.toLocaleString()} UZS</li>
+              <li><strong>Transaction ID:</strong> ${payment.transactionId}</li>
+            </ul>
+            <hr/>
+            <h3>Rad etish sababi:</h3>
+            <p style="background: #fee; padding: 15px; border-left: 4px solid #c00; border-radius: 4px;">
+              ${reason || "Sabab ko'rsatilmagan"}
+            </p>
+            <hr/>
+            <p>Iltimos, muammoni tuzatib, qayta urinib ko'ring yoki qo'llab-quvvatlash xizmatiga murojaat qiling.</p>
+            <p><strong>Telefon:</strong> +998 XX XXX XX XX</p>
+            <br/>
+            <p>Hurmat bilan,<br/>Rent Car jamoasi</p>
+          `,
+        });
+      } catch (emailError) {
+        console.error("Email sending error:", emailError);
+      }
 
       return NextResponse.json({
         success: true,
-        message: "To'lov rad etildi",
+        message: "To'lov rad etildi va foydalanuvchiga xabar yuborildi",
         data: { payment },
       });
     }
-  } catch (error: any) {
-    console.error("Verify payment error:", error);
+  } catch (error) {
+    console.error("Payment verification error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        message: "To'lovni tekshirishda xatolik",
-        error: error.message,
-      },
-      { status: 500 }
-    );
-  }
-}
-
-// app/api/admin/payments/pending/route.ts
-export async function GET_PENDING(request: NextRequest) {
-  try {
-    const admin = verifyAdmin(request);
-    if (!admin) {
-      return NextResponse.json(
-        { success: false, message: "Admin huquqi kerak" },
-        { status: 403 }
-      );
-    }
-
-    await connectDB();
-
-    const payments = await Payment.find({
-      status: "pending",
-      paymentProvider: "manual",
-    })
-      .populate("user", "name email phone")
-      .populate("booking", "bookingNumber")
-      .sort({ createdAt: -1 })
-      .lean();
-
-    return NextResponse.json({
-      success: true,
-      data: { payments },
-    });
-  } catch (error: any) {
-    console.error("Get pending payments error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: "To'lovlarni yuklashda xatolik",
-        error: error.message,
-      },
+      { success: false, message: "Server xatosi" },
       { status: 500 }
     );
   }

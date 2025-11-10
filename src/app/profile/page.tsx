@@ -52,7 +52,7 @@ export default function ProfilePage() {
         name: formData.get("name"),
         phone: formData.get("phone"),
         email: formData.get("email"),
-      };
+      } as Record<string, any>;
 
       const res = await fetch("/api/profile", {
         method: "PUT",
@@ -68,10 +68,19 @@ export default function ProfilePage() {
         throw new Error(json.error || json.message || "Saqlashda xatolik");
 
       setUser(json.data.user);
+      // localStorage yangilash: yangi token bo'lsa almashtiramiz, userni ham saqlaymiz
+      if (typeof window !== "undefined") {
+        if (json.data?.token) {
+          localStorage.setItem("token", json.data.token as string);
+        }
+        try {
+          localStorage.setItem("user", JSON.stringify(json.data.user));
+        } catch {}
+      }
       showToast("Profil muvaffaqiyatli saqlandi", "success");
-    } catch {
+    } catch (err: any) {
       setError("Saqlashda xatolik");
-      showToast("Saqlashda xatolik yuz berdi", "error");
+      showToast(err?.message || "Saqlashda xatolik yuz berdi", "error");
     } finally {
       setSaving(false);
     }
@@ -106,7 +115,6 @@ export default function ProfilePage() {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen flex flex-col ">
       <section className="flex-1 flex items-center justify-center">

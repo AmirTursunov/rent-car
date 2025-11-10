@@ -146,22 +146,25 @@ const CategoriesSection = () => {
           transition={{ duration: 0.7 }}
           viewport={{ once: true, amount: 0.4 }}
         >
-          <div className="inline-flex items-center gap-6 bg-[#202020] rounded-2xl px-10 py-6 border border-[#FFA400]/40 shadow-[0_0_20px_#FFA400]/30">
-            <div className="flex -space-x-2">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 bg-[#202020] rounded-2xl px-6 sm:px-10 py-5 sm:py-6 border border-[#FFA400]/40 shadow-[0_0_20px_#FFA400]/30 w-full max-w-[600px] mx-auto">
+            {/* Emojilar qismi */}
+            <div className="flex justify-center sm:justify-start -space-x-2 mb-3 sm:mb-0">
               {["🚗", "🏎️", "🚙", "🚕"].map((emoji, i) => (
                 <div
                   key={i}
-                  className="w-12 h-12 bg-[#030303] rounded-full flex items-center justify-center text-2xl border-2 border-[#FFA400]/50 shadow-[0_0_10px_#FFA400]/30"
+                  className="w-10 h-10 sm:w-12 sm:h-12 bg-[#030303] rounded-full flex items-center justify-center text-xl sm:text-2xl border-2 border-[#FFA400]/50 shadow-[0_0_10px_#FFA400]/30"
                 >
                   {emoji}
                 </div>
               ))}
             </div>
-            <div className="text-left">
-              <p className="text-xl font-bold text-[#FFA400]">
+
+            {/* Matn qismi */}
+            <div className="text-center sm:text-left">
+              <p className="text-lg sm:text-xl font-bold text-[#FFA400]">
                 500+ avtomobil turli kategoriyalarda
               </p>
-              <p className="text-[#DCFF00]/80">
+              <p className="text-sm sm:text-base text-[#DCFF00]/80">
                 Har bir mijoz uchun maxsus xizmat
               </p>
             </div>

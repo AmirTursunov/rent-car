@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
+import "@/models/Car";
 import { verifyToken } from "@/lib/auth";
-import { ApiResponse } from "@/types";
+import type { ApiResponse } from "@/types";
 
 export async function GET(
   request: NextRequest
@@ -24,10 +25,10 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const page = Number.parseInt(searchParams.get("page") || "1");
+    const limit = Number.parseInt(searchParams.get("limit") || "10");
 
-    let filter: any = { user: user.userId };
+    const filter: any = { user: user.userId };
     if (status) {
       filter.status = status;
     }
@@ -35,26 +36,15 @@ export async function GET(
     const skip = (page - 1) * limit;
 
     const bookings = await Booking.find(filter)
-      .populate("car", "brand model year pricePerDay images location")
+      .populate("car", "brand carModel year pricePerDay images location")
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     const total = await Booking.countDocuments(filter);
 
-    // Statistikalar
-    const stats = await Booking.aggregate([
-      { $match: { user: user.userId } },
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-          totalAmount: { $sum: "$totalPrice" },
-        },
-      },
-    ]);
-
-    const statusStats = {
+    const stats = {
       pending: 0,
       confirmed: 0,
       completed: 0,
@@ -62,19 +52,34 @@ export async function GET(
       totalSpent: 0,
     };
 
-    stats.forEach((stat) => {
-      statusStats[stat._id as keyof typeof statusStats] = stat.count;
-      if (stat._id === "completed") {
-        statusStats.totalSpent = stat.totalAmount;
-      }
-    });
+    // Only aggregate if explicitly requested via query param
+    const includeStats = searchParams.get("stats") === "true";
+    if (includeStats) {
+      const statsData = await Booking.aggregate([
+        { $match: { user: user.userId } },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+            totalAmount: { $sum: "$totalPrice" },
+          },
+        },
+      ]);
+
+      statsData.forEach((stat) => {
+        stats[stat._id as keyof typeof stats] = stat.count;
+        if (stat._id === "completed") {
+          stats.totalSpent = stat.totalAmount;
+        }
+      });
+    }
 
     return NextResponse.json({
       success: true,
       message: "Buyurtmalar muvaffaqiyatli olindi",
       data: {
         bookings,
-        stats: statusStats,
+        stats: includeStats ? stats : undefined,
         pagination: {
           current: page,
           pages: Math.ceil(total / limit),

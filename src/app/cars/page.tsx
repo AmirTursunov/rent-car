@@ -1,11 +1,9 @@
-// app/cars/page.tsx
 "use client";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Search,
   SlidersHorizontal,
-  Heart,
   Users,
   Fuel,
   Settings,
@@ -13,6 +11,7 @@ import {
   Droplet,
   MapPin,
 } from "lucide-react";
+import { CarsListingSkeleton } from "../../components/skeletons/car-card-skeleton";
 
 interface Car {
   _id: string;
@@ -36,7 +35,8 @@ const CarsListingPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  // const [likedCars, setLikedCars] = useState<Set<string>>(new Set());
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
   const formatSom = (value: number) =>
     new Intl.NumberFormat("uz-UZ").format(value);
 
@@ -102,7 +102,7 @@ const CarsListingPage = () => {
             typeof c.location === "string"
               ? c.location
               : c.location?.city ?? "",
-          color: c.color ?? "Noma’lum",
+          color: c.color ?? "Noma'lum",
         }));
 
         if (filters.search) {
@@ -134,7 +134,7 @@ const CarsListingPage = () => {
 
         if (filters.seats !== "all") {
           filteredCars = filteredCars.filter(
-            (car: Car) => car.seats >= parseInt(filters.seats)
+            (car: Car) => car.seats >= Number.parseInt(filters.seats)
           );
         }
 
@@ -161,17 +161,9 @@ const CarsListingPage = () => {
       setError("Server bilan aloqa xatosi");
     } finally {
       setLoading(false);
+      setIsInitialLoad(false);
     }
   };
-
-  // const toggleLike = (carId: string) => {
-  //   setLikedCars((prev) => {
-  //     const newSet = new Set(prev);
-  //     if (newSet.has(carId)) newSet.delete(carId);
-  //     else newSet.add(carId);
-  //     return newSet;
-  //   });
-  // };
 
   const categories = [
     { id: "all", name: "Barchasi", icon: "🚗" },
@@ -184,7 +176,7 @@ const CarsListingPage = () => {
   return (
     <div className="min-h-screen pt-20 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       {/* Header Banner */}
-      <div className=" text-yellow-400 py-16 border-b border-orange-400/30">
+      <div className="text-yellow-400 py-16 border-b border-orange-400/30">
         <div className="max-w-7xl mx-auto px-6">
           <h1 className="text-5xl font-bold mb-4">Avtomobillar</h1>
           <p className="text-lg text-gray-300">
@@ -252,98 +244,103 @@ const CarsListingPage = () => {
           </div>
         </div>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {cars.map((car) => (
-            <div
-              key={car._id}
-              className="group bg-white/5 backdrop-blur-sm rounded-3xl overflow-hidden border border-white/10 hover:border-yellow-400/30 hover:shadow-[0_0_25px_rgba(255,255,255,0.15)] transition-all duration-500 hover:-translate-y-2"
+        {isInitialLoad && loading ? (
+          <CarsListingSkeleton />
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-red-400 text-lg">{error}</p>
+            <button
+              onClick={() => fetchCars()}
+              className="mt-4 px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-semibold rounded-xl hover:opacity-90 transition-all"
             >
-              <div className="relative h-56 overflow-hidden">
-                <img
-                  src={
-                    car.image ||
-                    "https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=800"
-                  }
-                  alt={`${car.brand} ${car.model}`}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                />
-                {/* <button
-                  onClick={() => toggleLike(car._id)}
-                  className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                    likedCars.has(car._id)
-                      ? "bg-gradient-to-r from-yellow-400 to-orange-500 text-black"
-                      : "bg-white/10 text-gray-200 hover:bg-yellow-400 hover:text-black"
-                  }`}
-                >
-                  <Heart
-                    className={`w-5 h-5 ${
-                      likedCars.has(car._id) ? "fill-current" : ""
-                    }`}
+              Qayta urinib ko'ring
+            </button>
+          </div>
+        ) : cars.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-300 text-lg">Mashinalar topilmadi</p>
+          </div>
+        ) : (
+          /* Cards */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {cars.map((car) => (
+              <div
+                key={car._id}
+                className="group bg-white/5 backdrop-blur-sm rounded-3xl overflow-hidden border border-white/10 hover:border-yellow-400/30 hover:shadow-[0_0_25px_rgba(255,255,255,0.15)] transition-all duration-500 hover:-translate-y-2"
+              >
+                <div className="relative h-56 overflow-hidden">
+                  <img
+                    src={
+                      car.image ||
+                      "https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=800" ||
+                      "/placeholder.svg"
+                    }
+                    alt={`${car.brand} ${car.model}`}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                   />
-                </button> */}
-              </div>
-
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-yellow-400 mb-1">
-                      {car.brand} {car.model}
-                    </h3>
-                    <p className="text-sm text-gray-400 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-orange-500" />
-                      {car.location || "Toshkent"}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 bg-white/10 text-orange-400 text-xs font-semibold rounded-full border border-orange-400/30">
-                    {car.category}
-                  </span>
                 </div>
 
-                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-orange-400/10">
-                  <div className="flex items-center gap-1.5 text-gray-400">
-                    <Users className="w-4 h-4 text-yellow-400" />
-                    <span className="text-sm">{car.seats}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-gray-400">
-                    <Settings className="w-4 h-4 text-yellow-400" />
-                    <span className="text-sm capitalize">
-                      {car.transmission}
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-yellow-400 mb-1">
+                        {car.brand} {car.model}
+                      </h3>
+                      <p className="text-sm text-gray-400 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-orange-500" />
+                        {car.location || "Toshkent"}
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 bg-white/10 text-orange-400 text-xs font-semibold rounded-full border border-orange-400/30">
+                      {car.category}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-gray-400">
-                    <Fuel className="w-4 h-4 text-yellow-400" />
-                    <span className="text-sm capitalize">{car.fuelType}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-gray-400">
-                    <Droplet className="w-4 h-4 text-yellow-400" />
-                    <span className="text-sm capitalize">{car.color}</span>
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400 mb-1">Kunlik</p>
-                    <p className="text-2xl font-bold bg-gradient-to-br from-green-400 to-emerald-500 bg-clip-text text-transparent">
-                      {formatSom(car.pricePerDay)}
-                      <span className="ml-2 text-sm text-gray-300 font-normal">
-                        so'm
+                  <div className="flex items-center gap-4 mb-6 pb-6 border-b border-orange-400/10">
+                    <div className="flex items-center gap-1.5 text-gray-400">
+                      <Users className="w-4 h-4 text-yellow-400" />
+                      <span className="text-sm">{car.seats}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-gray-400">
+                      <Settings className="w-4 h-4 text-yellow-400" />
+                      <span className="text-sm capitalize">
+                        {car.transmission}
                       </span>
-                    </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-gray-400">
+                      <Fuel className="w-4 h-4 text-yellow-400" />
+                      <span className="text-sm capitalize">{car.fuelType}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-gray-400">
+                      <Droplet className="w-4 h-4 text-yellow-400" />
+                      <span className="text-sm capitalize">{car.color}</span>
+                    </div>
                   </div>
-                  <Link
-                    href={`/cars/${car._id}`}
-                    className="px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-semibold rounded-xl hover:opacity-90 transition-all flex items-center gap-2"
-                    aria-label={`Ko‘rish: ${car.brand} ${car.model}`}
-                  >
-                    Ko‘rish
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-400 mb-1">Kunlik</p>
+                      <p className="text-2xl font-bold bg-gradient-to-br from-green-400 to-emerald-500 bg-clip-text text-transparent">
+                        {formatSom(car.pricePerDay)}
+                        <span className="ml-2 text-sm text-gray-300 font-normal">
+                          so'm
+                        </span>
+                      </p>
+                    </div>
+                    <Link
+                      href={`/cars/${car._id}`}
+                      className="px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-semibold rounded-xl hover:opacity-90 transition-all flex items-center gap-2"
+                      aria-label={`Ko'rish: ${car.brand} ${car.model}`}
+                    >
+                      Ko'rish
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

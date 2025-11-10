@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   DollarSign,
   RefreshCw,
@@ -8,8 +8,10 @@ import {
   CheckCircle,
   Clock,
   Search,
+  X,
+  Trash,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { PaymentSkeleton } from "./payment-skeleton";
 
 interface Payment {
   _id: string;
@@ -20,21 +22,50 @@ interface Payment {
   transactionId: string;
   createdAt: string;
   user: { name: string; email: string };
+  paymentProvider?: string;
+  providerData?: {
+    senderCardNumber?: string;
+    senderCardHolder?: string;
+    receiverCardNumber?: string;
+    transactionDate?: string;
+    transactionId?: string;
+    screenshotUrl?: string;
+  };
 }
 
 const AdminPaymentsPage = () => {
-  const router = useRouter();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState("all");
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [viewPayment, setViewPayment] = useState<Payment | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [rejectModal, setRejectModal] = useState<{
+    isOpen: boolean;
+    paymentId: string | null;
+    paymentDetails: Payment | null;
+  }>({
+    isOpen: false,
+    paymentId: null,
+    paymentDetails: null,
+  });
+  const [rejectReason, setRejectReason] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const ITEMS_PER_PAGE = 20;
 
   const getToken = () =>
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  const fetchPayments = async () => {
+  const fetchPayments = async (
+    pageNum = 1,
+    search = "",
+    status = "all",
+    method = "all"
+  ) => {
     try {
       setLoading(true);
       setError(null);
@@ -46,13 +77,25 @@ const AdminPaymentsPage = () => {
         return;
       }
 
-      const res = await fetch("/api/payments", {
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: ITEMS_PER_PAGE.toString(),
+        search: search,
+        status: status === "all" ? "" : status,
+        method: method === "all" ? "" : method,
+      });
+
+      const res = await fetch(`/api/payments?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Yuklab bo‘lmadi");
+      if (!res.ok) throw new Error("Yuklab bo'lmadi");
 
       const data = await res.json();
-      if (data.success) setPayments(data.data.payments || []);
+      if (data.success) {
+        setPayments(data.data.payments || []);
+        setHasMore(data.data.hasMore || false);
+        setPage(pageNum);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik yuz berdi");
     } finally {
@@ -60,9 +103,147 @@ const AdminPaymentsPage = () => {
     }
   };
 
+  const updateSinglePayment = (
+    paymentId: string,
+    updates: Partial<Payment>
+  ) => {
+    setPayments((prev) =>
+      prev.map((p) => (p._id === paymentId ? { ...p, ...updates } : p))
+    );
+    if (viewPayment?._id === paymentId) {
+      setViewPayment({ ...viewPayment, ...updates });
+    }
+  };
+
+  const handleDelete = async (paymentId: string) => {
+    if (!confirm("Bu to'lovni o'chirishni istaysizmi?")) return;
+    try {
+      setActionLoadingId(paymentId);
+      const token = getToken();
+
+      if (!token) {
+        setError("Token topilmadi");
+        return;
+      }
+
+      const res = await fetch(`/api/payments/${paymentId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.success) {
+        throw new Error(
+          data?.message || "To'lovni o'chirishda xatolik yuz berdi"
+        );
+      }
+
+      setPayments((prev) => prev.filter((p) => p._id !== paymentId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xatolik yuz berdi");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchPayments(page, searchTerm, statusFilter, methodFilter);
+    setIsRefreshing(false);
+  };
+
   useEffect(() => {
-    fetchPayments();
+    fetchPayments(1, searchTerm, statusFilter, methodFilter);
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchPayments(1, searchTerm, statusFilter, methodFilter);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm, statusFilter, methodFilter]);
+
+  const handleVerify = async (
+    paymentId: string,
+    approved: boolean,
+    reason?: string
+  ) => {
+    try {
+      setActionLoadingId(paymentId);
+      const token = getToken();
+      if (!token) {
+        setError("Token topilmadi");
+        return;
+      }
+
+      const res = await fetch(`/api/payments/verify/${paymentId}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ approved, reason }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "Amalni bajarib bo'lmadi");
+      }
+
+      // Statusni yangilash
+      updateSinglePayment(paymentId, {
+        status: approved ? "completed" : "failed",
+      });
+
+      // Modalni yopish
+      setRejectModal({ isOpen: false, paymentId: null, paymentDetails: null });
+      setRejectReason("");
+      setViewPayment(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Xatolik yuz berdi");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+  // const handleRejectSubmit = async () => {
+  //   if (!rejectModal.paymentId) return;
+  //   try {
+  //     setActionLoadingId(rejectModal.paymentId);
+  //     const token = getToken();
+  //     if (!token) {
+  //       setError("Token topilmadi");
+  //       return;
+  //     }
+
+  //     const res = await fetch(`/api/payments/verify/${rejectModal.paymentId}`, {
+  //       method: "POST",
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         approved: false,
+  //         reason: rejectReason,
+  //       }),
+  //     });
+
+  //     const data = await res.json().catch(() => null);
+  //     if (!res.ok || !data?.success) {
+  //       throw new Error(data?.message || "Rad etishda xatolik yuz berdi");
+  //     }
+
+  //     updateSinglePayment(rejectModal.paymentId, { status: "failed" });
+  //     setRejectModal({ isOpen: false, paymentId: null, paymentDetails: null });
+  //     setRejectReason("");
+  //   } catch (e) {
+  //     setError(e instanceof Error ? e.message : "Xatolik yuz berdi");
+  //   } finally {
+  //     setActionLoadingId(null);
+  //   }
+  // };
 
   const getStatusBadge = (status: string) => {
     const config: Record<string, { bg: string; text: string; label: string }> =
@@ -113,18 +294,11 @@ const AdminPaymentsPage = () => {
     );
   };
 
-  const filteredPayments = payments.filter((p) => {
-    const matchesSearch =
-      p.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.user.email.toLowerCase().includes(searchTerm.toLowerCase());
+  const canTakeAction = (status: string) => {
+    return status === "pending" || status === "processing";
+  };
 
-    const matchesStatus = statusFilter === "all" || p.status === statusFilter;
-    const matchesMethod =
-      methodFilter === "all" || p.paymentMethod === methodFilter;
-
-    return matchesSearch && matchesStatus && matchesMethod;
-  });
+  const filteredPayments = payments;
 
   const totalAmount = payments
     .filter((p) => p.status === "completed")
@@ -134,12 +308,7 @@ const AdminPaymentsPage = () => {
     .filter((p) => p.status === "pending")
     .reduce((sum, p) => sum + p.amount, 0);
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600" />
-      </div>
-    );
+  if (loading && payments.length === 0) return <PaymentSkeleton />;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -147,15 +316,18 @@ const AdminPaymentsPage = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">To‘lovlar</h1>
-            <p className="text-gray-600 mt-1">Barcha to‘lovlarni boshqarish</p>
+            <h1 className="text-3xl font-bold text-gray-900">To'lovlar</h1>
+            <p className="text-gray-600 mt-1">Barcha to'lovlarni boshqarish</p>
           </div>
           <button
-            onClick={fetchPayments}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
           >
-            <RefreshCw className="w-4 h-4" />
-            Yangilash
+            <RefreshCw
+              className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+            />
+            {isRefreshing ? "Yangilanyapti..." : "Yangilash"}
           </button>
         </div>
 
@@ -181,7 +353,7 @@ const AdminPaymentsPage = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Jami to‘lovlar</p>
+                <p className="text-sm text-gray-600">Jami to'lovlar</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
                   {payments.length}
                 </p>
@@ -192,9 +364,9 @@ const AdminPaymentsPage = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">To‘langan summa</p>
+                <p className="text-sm text-gray-600">To'langan summa (so'm)</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">
-                  ${totalAmount.toLocaleString()}
+                  {totalAmount.toLocaleString()}
                 </p>
               </div>
               <CheckCircle className="w-10 h-10 text-green-600" />
@@ -203,9 +375,9 @@ const AdminPaymentsPage = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Kutilayotgan</p>
+                <p className="text-sm text-gray-600">Kutilayotgan (so'm)</p>
                 <p className="text-2xl font-bold text-yellow-600 mt-1">
-                  ${pendingAmount.toLocaleString()}
+                  {pendingAmount.toLocaleString()}
                 </p>
               </div>
               <Clock className="w-10 h-10 text-yellow-600" />
@@ -234,7 +406,7 @@ const AdminPaymentsPage = () => {
               <option value="all">Barcha statuslar</option>
               <option value="pending">Kutilmoqda</option>
               <option value="processing">Jarayonda</option>
-              <option value="completed">To‘langan</option>
+              <option value="completed">To'langan</option>
               <option value="failed">Muvaffaqiyatsiz</option>
               <option value="cancelled">Bekor qilingan</option>
               <option value="refunded">Qaytarilgan</option>
@@ -247,7 +419,7 @@ const AdminPaymentsPage = () => {
               <option value="all">Barcha usullar</option>
               <option value="card">Karta</option>
               <option value="cash">Naqd</option>
-              <option value="transfer">O‘tkazma</option>
+              <option value="transfer">O'tkazma</option>
             </select>
           </div>
         </div>
@@ -256,7 +428,7 @@ const AdminPaymentsPage = () => {
         {filteredPayments.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">To‘lovlar topilmadi</p>
+            <p className="text-gray-500 text-lg">To'lovlar topilmadi</p>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -312,9 +484,56 @@ const AdminPaymentsPage = () => {
                         {new Date(p.createdAt).toLocaleDateString("uz-UZ")}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <button className="text-blue-600 hover:text-blue-800 transition">
-                          <Eye className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => setViewPayment(p)}
+                            className="text-blue-600 hover:text-blue-800 transition"
+                            title="Ko'rish"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                          {canTakeAction(p.status) && (
+                            <>
+                              <button
+                                onClick={() => handleVerify(p._id, true)}
+                                disabled={actionLoadingId === p._id}
+                                className="px-3 py-1 text-sm rounded bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 transition"
+                                title="Tasdiqlash"
+                              >
+                                {actionLoadingId === p._id
+                                  ? "..."
+                                  : "Tasdiqlash"}
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setRejectModal({
+                                    isOpen: true,
+                                    paymentId: p._id,
+                                    paymentDetails: p,
+                                  })
+                                }
+                                disabled={actionLoadingId === p._id}
+                                className="px-3 py-1 text-sm rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 transition"
+                                title="Rad etish"
+                              >
+                                {actionLoadingId === p._id
+                                  ? "..."
+                                  : "Rad etish"}
+                              </button>
+                            </>
+                          )}
+                          {!canTakeAction(p.status) && (
+                            <span className="text-xs text-gray-400 italic">
+                              Amal bajarilgan
+                            </span>
+                          )}
+                          <button
+                            onClick={() => handleDelete(p._id)}
+                            title="O'chirish"
+                          >
+                            <Trash className="w-5 h-5 text-red-600 hover:text-red-800 transition" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -324,6 +543,205 @@ const AdminPaymentsPage = () => {
           </div>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {viewPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div>
+                <h3 className="text-lg font-semibold">To'lov tafsilotlari</h3>
+                <p className="text-sm text-gray-500">
+                  ID: {viewPayment.transactionId}
+                </p>
+              </div>
+              <button
+                onClick={() => setViewPayment(null)}
+                className="p-2 hover:bg-gray-100 rounded transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Foydalanuvchi:</span>{" "}
+                  {viewPayment.user.name}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Email:</span>{" "}
+                  {viewPayment.user.email}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Summa:</span>{" "}
+                  {viewPayment.amount.toLocaleString()} UZS
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Usul:</span>{" "}
+                  {viewPayment.paymentMethod}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Status:</span>{" "}
+                  {getStatusBadge(viewPayment.status)}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Yaratilgan:</span>{" "}
+                  {new Date(viewPayment.createdAt).toLocaleString("uz-UZ")}
+                </p>
+              </div>
+              {viewPayment.providerData && (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Jo'natuvchi karta:</span>{" "}
+                    {viewPayment.providerData.senderCardNumber}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Karta egasi:</span>{" "}
+                    {viewPayment.providerData.senderCardHolder}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Qabul qiluvchi karta:</span>{" "}
+                    {viewPayment.providerData.receiverCardNumber}
+                  </p>
+                  {viewPayment.providerData.transactionDate && (
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Tranzaksiya vaqti:</span>{" "}
+                      {new Date(
+                        viewPayment.providerData.transactionDate
+                      ).toLocaleString("uz-UZ")}
+                    </p>
+                  )}
+                  {viewPayment.providerData.transactionId && (
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Tranzaksiya ID:</span>{" "}
+                      {viewPayment.providerData.transactionId}
+                    </p>
+                  )}
+                </div>
+              )}
+              {viewPayment.providerData?.screenshotUrl && (
+                <div className="md:col-span-2">
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    To'lov cheki:
+                  </p>
+                  <img
+                    src={
+                      viewPayment.providerData.screenshotUrl ||
+                      "/placeholder.svg"
+                    }
+                    alt="Payment screenshot"
+                    className="w-full rounded-lg border shadow-sm"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
+              <button
+                onClick={() => setViewPayment(null)}
+                className="px-4 py-2 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+              >
+                Yopish
+              </button>
+              {canTakeAction(viewPayment.status) && (
+                <>
+                  <button
+                    onClick={async () => {
+                      await handleVerify(viewPayment._id, false);
+                      setViewPayment(null);
+                    }}
+                    className="px-4 py-2 rounded bg-red-100 text-red-700 hover:bg-red-200 transition"
+                  >
+                    Rad etish
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await handleVerify(viewPayment._id, true);
+                      setViewPayment(null);
+                    }}
+                    className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition"
+                  >
+                    Tasdiqlash
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Reject Modal */}
+      {rejectModal.isOpen && rejectModal.paymentDetails && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">
+                To‘lovni rad etish
+              </h3>
+              <button
+                onClick={() =>
+                  setRejectModal({
+                    isOpen: false,
+                    paymentId: null,
+                    paymentDetails: null,
+                  })
+                }
+                className="p-2 hover:bg-gray-100 rounded transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                Quyidagi to‘lovni rad etmoqchimisiz?
+              </p>
+              <div className="bg-gray-50 border rounded-lg p-3 text-sm">
+                <p>
+                  <span className="font-medium">Foydalanuvchi:</span>{" "}
+                  {rejectModal.paymentDetails.user.name}
+                </p>
+                <p>
+                  <span className="font-medium">Summa:</span>{" "}
+                  {rejectModal.paymentDetails.amount.toLocaleString()} so‘m
+                </p>
+              </div>
+
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Rad etish sababini yozing..."
+                className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                rows={4}
+              />
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() =>
+                    setRejectModal({
+                      isOpen: false,
+                      paymentId: null,
+                      paymentDetails: null,
+                    })
+                  }
+                  className="px-4 py-2 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  onClick={() =>
+                    handleVerify(rejectModal.paymentId!, false, rejectReason)
+                  }
+                  disabled={actionLoadingId === rejectModal.paymentId}
+                  className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-50"
+                >
+                  {actionLoadingId === rejectModal.paymentId
+                    ? "Yuborilmoqda..."
+                    : "Rad etish"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

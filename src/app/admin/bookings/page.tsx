@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import type React from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Calendar,
   CheckCircle,
@@ -8,7 +9,9 @@ import {
   AlertCircle,
   RefreshCw,
   X,
+  Trash,
 } from "lucide-react";
+import { BookingSkeleton } from "./booking-skeleton";
 
 interface Booking {
   _id: string;
@@ -33,20 +36,19 @@ interface Booking {
 
 const AdminBookings: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
+  const getToken = useCallback(
+    () =>
+      typeof window !== "undefined" ? localStorage.getItem("token") : null,
+    []
+  );
 
-  const getToken = () =>
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
-      setLoading(true);
       setError(null);
       const token = getToken();
       if (!token) {
@@ -67,11 +69,22 @@ const AdminBookings: React.FC = () => {
       } else {
         setError(data.message || "Server xatosi");
       }
-      setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik");
+    } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
+  }, [getToken]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchBookings();
+    console.log(bookings);
   };
 
   const updateBookingStatus = async (bookingId: string, newStatus: string) => {
@@ -79,11 +92,18 @@ const AdminBookings: React.FC = () => {
       const token = getToken();
       if (!token) return;
 
+      // Optimistic update
+      setBookings((prev) =>
+        prev.map((b) =>
+          b._id === bookingId ? { ...b, status: newStatus as any } : b
+        )
+      );
+
       const response = await fetch(`/api/bookings/${bookingId}/status`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+          "Content-Type": "lication/json",
         },
         body: JSON.stringify({ status: newStatus }),
       });
@@ -93,7 +113,50 @@ const AdminBookings: React.FC = () => {
         throw new Error(err?.message || "Yangilashda xatolik");
       }
 
-      await fetchBookings();
+      // If update selected booking is open, update it too
+      if (selectedBooking?._id === bookingId) {
+        setSelectedBooking((prev) =>
+          prev ? { ...prev, status: newStatus as any } : null
+        );
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xatolik");
+      // Refetch on error
+      fetchBookings();
+    }
+  };
+
+  const deleteBooking = async (bookingId: string) => {
+    if (!confirm("Bu buyurtmani o'chirmoqchimisiz?")) return;
+
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const deletedBooking = bookings.find((b) => b._id === bookingId);
+      setBookings((prev) => prev.filter((b) => b._id !== bookingId));
+      if (selectedBooking?._id === bookingId) {
+        setSelectedBooking(null);
+      }
+
+      const response = await fetch(`/api/bookings/${bookingId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => null);
+        setBookings((prev) => {
+          const updated = [...prev];
+          if (deletedBooking) {
+            updated.push(deletedBooking);
+          }
+          return updated;
+        });
+        throw new Error(err?.message || "O'chirishda xatolik");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik");
     }
@@ -106,12 +169,14 @@ const AdminBookings: React.FC = () => {
     const styles: Record<string, string> = {
       pending: "bg-yellow-100 text-yellow-700",
       confirmed: "bg-blue-100 text-blue-700",
+      approved: "bg-blue-100 text-blue-700",
       completed: "bg-green-100 text-green-700",
       cancelled: "bg-red-100 text-red-700",
     };
     const labels: Record<string, string> = {
       pending: "Kutilmoqda",
       confirmed: "Tasdiqlangan",
+      approved: "Tasdiqlangan",
       completed: "Yakunlangan",
       cancelled: "Bekor qilingan",
     };
@@ -127,11 +192,7 @@ const AdminBookings: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <BookingSkeleton />;
   }
 
   return (
@@ -153,11 +214,14 @@ const AdminBookings: React.FC = () => {
         </h2>
 
         <button
-          onClick={fetchBookings}
-          className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 flex items-center space-x-2"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 flex items-center space-x-2 disabled:opacity-50"
         >
-          <RefreshCw className="w-4 h-4" />
-          <span>Yangilash</span>
+          <RefreshCw
+            className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+          />
+          <span>{isRefreshing ? "Yangilanyapti..." : "Yangilash"}</span>
         </button>
       </div>
 
@@ -186,7 +250,17 @@ const AdminBookings: React.FC = () => {
             </p>
           </div>
         </div>
-
+        {/* warning */}
+        <div
+          className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4"
+          role="alert"
+        >
+          <p className="font-bold">Diqqat!</p>
+          <p>
+            Iltimos buyurtmani qabul qilishdan oldin, to'lov qilinganligini
+            tekshiring!
+          </p>
+        </div>
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -223,7 +297,7 @@ const AdminBookings: React.FC = () => {
                     </td>
                     <td className="py-4 px-4">
                       <p className="font-medium">
-                        {booking.car.brand} {booking.car.carModel}
+                        {booking.car?.brand} {booking.car?.carModel}
                       </p>
                     </td>
                     <td className="py-4 px-4">
@@ -271,6 +345,9 @@ const AdminBookings: React.FC = () => {
                         >
                           <Eye className="w-5 h-5" />
                         </button>
+                        <button onClick={() => deleteBooking(booking._id)}>
+                          <Trash className="w-5 h-5 text-red-600 hover:text-red-800 transition" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -288,10 +365,9 @@ const AdminBookings: React.FC = () => {
         </div>
       </div>
 
-      {/* Detail Modal */}
       {selectedBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white  rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border shadow-lg">
+          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border shadow-lg">
             <div className="flex items-center justify-between p-4 border-b">
               <div>
                 <h3 className="text-lg font-bold">

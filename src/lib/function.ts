@@ -33,7 +33,7 @@ export const defaultPublicSettings: PublicSettings = {
 };
 
 export async function getSettings(): Promise<PublicSettings> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
   try {
     const res = await fetch(`${baseUrl}/api/settings`, {

@@ -11,7 +11,10 @@ export interface ICar extends Document {
   transmission: "manual" | "avtomat";
   seats: number;
   pricePerDay: number;
-  count?: number;
+  zalog: number;
+  totalCount: number; // Jami mashinalar soni
+  availableCount: number; // Mavjud mashinalar soni
+  bookedCount: number; // Band qilingan mashinalar soni
   images: string[];
   features: string[];
   description?: string;
@@ -23,7 +26,7 @@ export interface ICar extends Document {
       lng: number;
     };
   };
-  available: boolean;
+  available: boolean; // Agar availableCount > 0 bo'lsa true
   rating: {
     average: number;
     count: number;
@@ -85,11 +88,29 @@ const carSchema = new Schema<ICar>(
       required: [true, "Kunlik narxi kiritilishi kerak"],
       min: [0, "Narx 0 dan kichik bo'lmasligi kerak"],
     },
-    count: {
+    zalog: {
       type: Number,
-      required: [true, "Mashina soni kiritilishi kerak"],
+      required: [true, "Mashina uchun zalog(kafolat puli) kiritilishi kerak"],
+      min: [0, "Narx 0 dan kichik bo'lmasligi kerak"],
+    },
+    totalCount: {
+      type: Number,
+      required: [true, "Jami mashinalar soni kiritilishi kerak"],
       min: [1, "Kamida 1 ta mashina bo'lishi kerak"],
       default: 1,
+    },
+    availableCount: {
+      type: Number,
+      required: true,
+      min: [0, "Mavjud mashinalar soni 0 dan kichik bo'lmasligi kerak"],
+      default: function () {
+        return this.totalCount || 1;
+      },
+    },
+    bookedCount: {
+      type: Number,
+      default: 0,
+      min: [0, "Band qilingan mashinalar soni 0 dan kichik bo'lmasligi kerak"],
     },
     images: [
       {
@@ -147,12 +168,33 @@ const carSchema = new Schema<ICar>(
   }
 );
 
+// Pre-save middleware: availableCount va bookedCount ni tekshirish
+carSchema.pre("save", function (next) {
+  // availableCount + bookedCount = totalCount bo'lishi kerak
+  if (
+    this.isModified("totalCount") ||
+    this.isModified("availableCount") ||
+    this.isModified("bookedCount")
+  ) {
+    // Agar totalCount o'zgartirilsa, availableCount ni qayta hisoblash
+    if (this.isModified("totalCount")) {
+      const diff = this.totalCount - (this.availableCount + this.bookedCount);
+      this.availableCount += diff;
+    }
+
+    // available flag'ni yangilash
+    this.available = this.availableCount > 0;
+  }
+  next();
+});
+
 // Index qo'shish tezroq qidiruv uchun
-carSchema.index({ brand: 1, model: 1 });
+carSchema.index({ brand: 1, carModel: 1 });
 carSchema.index({ pricePerDay: 1 });
 carSchema.index({ available: 1 });
 carSchema.index({ "location.city": 1 });
 carSchema.index({ createdAt: -1 });
 carSchema.index({ category: 1 });
+carSchema.index({ availableCount: 1 });
 
 export default mongoose.models.Car || mongoose.model<ICar>("Car", carSchema);

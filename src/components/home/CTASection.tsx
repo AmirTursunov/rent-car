@@ -199,9 +199,10 @@ const CTASection = () => {
         transition={{ duration: 0.72 }}
         viewport={{ once: true, amount: 0.36 }}
       >
-        <div className="inline-flex items-center gap-4 bg-white/5 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/10">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 bg-white/5 backdrop-blur-sm rounded-2xl px-6 sm:px-8 py-5 border border-white/10 w-full max-w-[800px] mx-auto">
+          {/* 1️⃣ Kafolat */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-green-500 rounded-full flex items-center justify-center">
               <svg
                 className="w-5 h-5 text-white"
                 fill="none"
@@ -216,11 +217,17 @@ const CTASection = () => {
                 />
               </svg>
             </div>
-            <span className="text-white font-semibold">100% Kafolat</span>
+            <span className="text-white font-semibold text-sm sm:text-base">
+              100% Kafolat
+            </span>
           </div>
-          <div className="w-px h-6 bg-white/30"></div>
+
+          {/* Divider (faqat katta ekranlarda ko‘rinadi) */}
+          <div className="hidden sm:block w-px h-6 bg-white/30"></div>
+
+          {/* 2️⃣ Xavfsiz to‘lov */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-500 rounded-full flex items-center justify-center">
               <svg
                 className="w-5 h-5 text-white"
                 fill="none"
@@ -235,11 +242,17 @@ const CTASection = () => {
                 />
               </svg>
             </div>
-            <span className="text-white font-semibold">Xavfsiz to'lov</span>
+            <span className="text-white font-semibold text-sm sm:text-base">
+              Xavfsiz to'lov
+            </span>
           </div>
-          <div className="w-px h-6 bg-white/30"></div>
+
+          {/* Divider */}
+          <div className="hidden sm:block w-px h-6 bg-white/30"></div>
+
+          {/* 3️⃣ Qo'llab-quvvatlash */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-purple-500 rounded-full flex items-center justify-center">
               <svg
                 className="w-5 h-5 text-white"
                 fill="none"
@@ -254,7 +267,7 @@ const CTASection = () => {
                 />
               </svg>
             </div>
-            <span className="text-white font-semibold">
+            <span className="text-white font-semibold text-sm sm:text-base">
               24/7 Qo'llab-quvvatlash
             </span>
           </div>

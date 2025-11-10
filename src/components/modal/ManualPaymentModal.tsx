@@ -139,8 +139,8 @@ const ManualPaymentModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto pt-200">
-      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-3xl max-w-3xl w-full my-8 border border-yellow-400/30 shadow-[0_0_50px_rgba(251,191,36,0.3)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-3xl max-w-3xl w-full my-8 border border-yellow-400/30 shadow-[0_0_50px_rgba(251,191,36,0.3)] max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-6 flex items-center justify-between rounded-t-3xl">
           <div>
@@ -214,7 +214,7 @@ const ManualPaymentModal = ({
 
           {/* Step 2: Karta ma'lumotlari */}
           {paymentMethod && (
-            <div className="animate-fadeIn">
+            <div className="animate-fadeIn ">
               <h3 className="text-lg font-bold text-yellow-400 mb-4">
                 2. Ushbu kartaga pul o'tkazing
               </h3>
