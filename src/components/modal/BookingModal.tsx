@@ -38,7 +38,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
   const [bookingData, setBookingData] = useState({
     startDate: "",
     endDate: "",
-    location: "",
+    location: "Amir Temur Ko'chasi 1, Toshkent",
     passportSeries: "",
     passportNumber: "",
     phoneNumber: "",
@@ -212,47 +212,45 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
     }
   };
 
-  const checkBookingStatus = async () => {
-    if (!createdBookingId) return;
-    try {
-      const token =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      if (!token) return;
+  // const checkBookingStatus = async () => {
+  //   if (!createdBookingId) return;
+  //   try {
+  //     const token =
+  //       typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  //     if (!token) return;
 
-      const res = await fetch(`/api/bookings/${createdBookingId}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+  //     const res = await fetch(`/api/bookings/${createdBookingId}`, {
+  //       method: "GET",
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //         "Content-Type": "application/json",
+  //       },
+  //     });
 
-      const data = await res.json().catch(() => null);
-      if (res.ok && data?.data?.booking) {
-        const b = data.data.booking;
-        const approved =
-          b.status === "approved" ||
-          b.status === "confirmed" ||
-          b.paid === true ||
-          b.isPaid === true ||
-          b.paymentStatus === "confirmed" ||
-          b.paymentStatus === "paid" ||
-          b.paymentStatus === "approved" ||
-          b.paymentStatus === "deposit_paid"; // backend verify sets this
+  //     const data = await res.json().catch(() => null);
+  //     if (res.ok && data?.data?.booking) {
+  //       const b = data.data.booking;
+  //       const approved =
+  //         b.status === "approved" ||
+  //         b.status === "confirmed" ||
+  //         b.paid === true ||
+  //         b.isPaid === true ||
+  //         b.paymentStatus === "confirmed" ||
+  //         b.paymentStatus === "paid" ||
+  //         b.paymentStatus === "approved" ||
+  //         b.paymentStatus === "deposit_paid"; // backend verify sets this
 
-        if (approved) {
-          setAwaitingApproval(false);
-          setStep(3);
-          setError(null);
-        }
-      }
-    } catch (err) {
-      // polling paytida xatoni UI’da ko‘rsatmaymiz
-      console.error("Booking status check error:", err);
-    }
-  };
-
-  // Avto-polling olib tashlandi — admin tasdiqlagach, user oynani yopib ochsa yoki keyinroq qaytsa step 3 ko'rinadi.
+  //       if (approved) {
+  //         setAwaitingApproval(false);
+  //         setStep(3);
+  //         setError(null);
+  //       }
+  //     }
+  //   } catch (err) {
+  //     // polling paytida xatoni UI’da ko‘rsatmaymiz
+  //     console.error("Booking status check error:", err);
+  //   }
+  // };
 
   if (!isOpen) return null;
 
@@ -418,6 +416,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                   </label>
                   <input
                     type="text"
+                    readOnly
                     value={bookingData.location}
                     onChange={(e) =>
                       setBookingData({
@@ -429,7 +428,11 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 placeholder-gray-500 focus:border-yellow-400 outline-none"
                   />
                   <p className="text-xs text-gray-400 mt-2">
-                    * Mashina shu manzildan olinadi va qaytariladi
+                    * Mashina shu manzildan olinadi va qaytariladi (
+                    <span className="text-yellow-400 font-semibold">
+                      Asosiy sahifada aniqroq manzilimiz mavjud
+                    </span>
+                    )
                   </p>
                 </div>
                 <div>

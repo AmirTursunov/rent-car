@@ -178,7 +178,7 @@ const ManualPaymentModal = ({
                 <li>Quyidagi karta raqamini nusxalang</li>
                 <li>O'z bankingizdagi ilovadan pul o'tkazing</li>
                 <li>Chek rasmini yuklab yuborish</li>
-                <li>Tasdiqlashni kuting (5-10 daqiqa)</li>
+                <li>Tasdiqlashni kuting (24 soat ichida)</li>
               </ol>
             </div>
           </div>

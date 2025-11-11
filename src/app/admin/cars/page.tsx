@@ -8,9 +8,10 @@ import {
   Search,
   X,
   AlertCircle,
-  Upload,
-  Image as ImageIcon,
   Package,
+  Eye,
+  ImageIcon,
+  Upload,
 } from "lucide-react";
 
 interface CarData {
@@ -34,6 +35,20 @@ interface CarData {
   zalog?: number;
 }
 
+interface BookingData {
+  _id: string;
+  carModel: string;
+  user: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  startDate: string;
+  endDate: string;
+  status: string;
+}
+import { useToast } from "../../../components/context/ToastContext"; // yo‘lni moslashtiring
+import { fa } from "zod/v4/locales";
 const AdminCarsPage: React.FC = () => {
   const [cars, setCars] = useState<CarData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +61,14 @@ const AdminCarsPage: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Booking modal state
+  const [showBookingsModal, setShowBookingsModal] = useState(false);
+  const [currentCarBookings, setCurrentCarBookings] = useState<BookingData[]>(
+    []
+  );
+  const [loadingCarBookings, setLoadingCarBookings] = useState(false);
+
   const [formData, setFormData] = useState<Partial<CarData>>({
     brand: "Chevrolet",
     carModel: "",
@@ -64,7 +87,7 @@ const AdminCarsPage: React.FC = () => {
     bookedCount: 0,
     zalog: 0,
   });
-
+  const { showToast } = useToast();
   useEffect(() => {
     fetchCars();
   }, []);
@@ -213,7 +236,7 @@ const AdminCarsPage: React.FC = () => {
         setSelectedCar(null);
 
         fetchCars();
-        alert(selectedCar ? "Mashina yangilandi!" : "Mashina qo'shildi!");
+        showToast(selectedCar ? "Mashina yangilandi!" : "Mashina qo'shildi!");
       }
     } catch (err) {
       console.error("Save error:", err);
@@ -238,7 +261,7 @@ const AdminCarsPage: React.FC = () => {
       if (!response.ok) throw new Error("O'chirishda xatolik");
 
       fetchCars();
-      alert("Mashina o'chirildi!");
+      showToast("Mashina o'chirildi!");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik");
     }
@@ -248,10 +271,12 @@ const AdminCarsPage: React.FC = () => {
     const matchesSearch =
       car.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
       car.carModel.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesFilter =
       filterAvailable === "all" ||
       (filterAvailable === "available" && car.availableCount > 0) ||
-      (filterAvailable === "unavailable" && car.availableCount === 0);
+      (filterAvailable === "unavailable" && car.bookedCount > 0);
+
     return matchesSearch && matchesFilter;
   });
 
@@ -267,7 +292,7 @@ const AdminCarsPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
           <AlertCircle className="w-5 h-5 text-red-600 mr-3 flex-shrink-0" />
@@ -342,7 +367,7 @@ const AdminCarsPage: React.FC = () => {
           >
             <option value="all">Barchasi</option>
             <option value="available">Mavjud</option>
-            <option value="unavailable">Hammasi band</option>
+            <option value="unavailable">Band</option>
           </select>
 
           <div className="flex items-center justify-end">
@@ -443,12 +468,52 @@ const AdminCarsPage: React.FC = () => {
                   >
                     <Edit className="w-5 h-5" />
                   </button>
+
                   <button
                     onClick={() => handleDelete(car._id)}
                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>
+
+                  {/* Eye button for fully booked cars */}
+                  {car.bookedCount > 0 && (
+                    <button
+                      onClick={async () => {
+                        setLoadingCarBookings(true);
+                        setShowBookingsModal(true);
+                        try {
+                          const token = getToken();
+                          const res = await fetch(
+                            `/api/bookings?car=${car._id}`,
+                            {
+                              headers: { Authorization: `Bearer ${token}` },
+                            }
+                          );
+                          const data = await res.json();
+                          if (res.ok) {
+                            setCurrentCarBookings(data.data.bookings || []);
+                          } else {
+                            setCurrentCarBookings([]);
+                            setError(
+                              data.error || "Bookinglarni yuklashda xatolik"
+                            );
+                          }
+                        } catch (err) {
+                          setError(
+                            err instanceof Error ? err.message : "Xatolik"
+                          );
+                          setCurrentCarBookings([]);
+                        } finally {
+                          setLoadingCarBookings(false);
+                        }
+                      }}
+                      className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                      title="Band qilingan mijozlarni ko‘rish"
+                    >
+                      <Eye className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -460,6 +525,118 @@ const AdminCarsPage: React.FC = () => {
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <Car className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500">Mashinalar topilmadi</p>
+        </div>
+      )}
+
+      {/* Bookings Modal */}
+      {showBookingsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+            {/* Header */}
+            <div className="p-6 border-b flex items-center justify-between sticky top-0 bg-white z-10">
+              <h3 className="text-2xl font-semibold text-gray-800">
+                Band qilingan mijozlar
+              </h3>
+              <button
+                onClick={() => setShowBookingsModal(false)}
+                className="text-gray-400 hover:text-gray-800 transition"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Body */}
+            {loadingCarBookings ? (
+              <div className="p-6 text-center text-gray-600">
+                Yuklanmoqda...
+              </div>
+            ) : currentCarBookings.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                Band qilingan mijozlar mavjud emas
+              </div>
+            ) : (
+              <div className="p-6 space-y-4">
+                {currentCarBookings.map((booking, idx) => (
+                  <div
+                    key={idx}
+                    className="border rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-lg transition bg-gray-50"
+                  >
+                    <div className="flex-1">
+                      {/* Mijoz haqida */}
+                      <p className="text-lg font-semibold text-gray-800">
+                        {booking.user?.name || "Ism ko‘rsatilmagan"}
+                      </p>
+                      <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                        <span>📧</span>{" "}
+                        {booking.user?.email || "Email ko‘rsatilmagan"}
+                      </p>
+                      <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                        <span>📞</span>{" "}
+                        {booking.user?.phone || "Telefon ko‘rsatilmagan"}
+                      </p>
+
+                      {/* Band qilingan sanalar */}
+                      <p className="text-sm text-gray-700 mt-2">
+                        <span className="font-medium">📅 Band qilingan:</span>{" "}
+                        {new Date(booking.startDate).toLocaleDateString(
+                          "uz-UZ"
+                        )}{" "}
+                        —{" "}
+                        {new Date(booking.endDate).toLocaleDateString("uz-UZ")}
+                      </p>
+                    </div>
+
+                    {/* Status badge */}
+                    <span
+                      className={`px-4 py-1 rounded-full text-sm font-semibold capitalize shrink-0 ${
+                        booking.status === "active"
+                          ? "bg-green-100 text-green-800"
+                          : booking.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {booking.status}
+                    </span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(
+                            "/api/bookings/send-reminder",
+                            {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                bookingId: booking._id,
+                                userEmail: booking.user?.email,
+                                userName: booking.user?.name,
+                                carName: booking.carModel,
+                                endDate: booking.endDate,
+                              }),
+                            }
+                          );
+                          const data = await res.json();
+                          if (data.success) {
+                            showToast(
+                              "✅ Eslatma email muvaffaqiyatli yuborildi"
+                            );
+                            setShowBookingsModal(false);
+                          } else {
+                            showToast(`❌ Xatolik: ${data.message}`);
+                          }
+                        } catch (error: any) {
+                          showToast(`❌ Server xatolik: ${error.message}`);
+                        }
+                      }}
+                      className="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 text-sm"
+                    >
+                      Send Email
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -832,19 +1009,19 @@ const AdminCarsPage: React.FC = () => {
                     setSelectedCar(null);
                     setImagePreview("");
                   }}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
                 >
-                  Bekor qilish
+                  Bekor
                 </button>
                 <button
                   type="submit"
-                  disabled={saving || uploadingImage}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
+                  disabled={uploadingImage || saving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {saving && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  {(uploadingImage || saving) && (
+                    <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                   )}
-                  <span>{selectedCar ? "Saqlash" : "Qo'shish"}</span>
+                  {saving || uploadingImage ? "Yuklanmoqda..." : "Saqlash"}
                 </button>
               </div>
             </form>

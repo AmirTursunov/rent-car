@@ -34,15 +34,10 @@ const verifyToken = (request: NextRequest): DecodedUser | null => {
 
 // Email transporter
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: 587,
-  secure: false, // true for 465, false for other ports
+  service: "gmail",
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
+    user: process.env.SMTP_USER || process.env.EMAIL_USER,
+    pass: process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD,
   },
 });
 
@@ -60,7 +55,7 @@ const sendAdminNotification = async (booking: any, user: any, car: any) => {
     const endDate = new Date(booking.endDate).toLocaleDateString("uz-UZ");
 
     await transporter.sendMail({
-      from: process.env.SMTP_USER,
+      from: process.env.SMTP_USER || process.env.EMAIL_USER,
       to: adminEmail,
       subject: `🚗 Yangi buyurtma - ${car.brand} ${car.carModel}`,
       html: `
@@ -365,7 +360,6 @@ export async function POST(request: NextRequest) {
       car
     ).catch((err) => {
       console.error("Admin email notification failed:", err);
-      // Email yuborilmasa ham davom etamiz
     });
 
     return NextResponse.json(
@@ -403,15 +397,30 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const filter =
+    // URL params
+    const { searchParams } = new URL(request.url);
+    const carId = searchParams.get("car");
+    const status = searchParams.get("status");
+
+    let filter: any =
       user.email === "amirtursunov2@gmail.com" ? {} : { user: user.userId };
 
+    // Car ID bo'yicha filter
+    if (carId) {
+      filter.car = carId;
+    }
+    // Status filter (active = pending yoki confirmed)
+    if (status === "active") {
+      filter.status = { $in: ["pending", "confirmed", "approved"] };
+    } else if (status) {
+      filter.status = status;
+    }
     const bookings = await Booking.find(filter)
       .populate(
         "car",
         "brand carModel pricePerDay availableCount totalCount bookedCount"
       )
-      .populate("user", "name email role")
+      .populate("user", "name email role phone")
       .sort({ createdAt: -1 })
       .limit(100)
       .lean();
