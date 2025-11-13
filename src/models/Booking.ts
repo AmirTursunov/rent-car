@@ -15,6 +15,7 @@ export interface IBooking extends Document {
   remainingAmount: number; // Qolgan summa
   status:
     | "pending"
+    | "need to be returned"
     | "confirmed"
     | "active"
     | "completed"
@@ -98,6 +99,7 @@ const bookingSchema = new Schema<IBooking>(
       type: String,
       enum: [
         "pending",
+        "need to be returned",
         "confirmed",
         "active",
         "completed",

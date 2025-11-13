@@ -28,7 +28,12 @@ interface Booking {
   location?: string;
   passport?: { series?: string; number?: string };
   notes?: string;
-  status: "pending" | "confirmed" | "completed" | "cancelled";
+  status:
+    | "pending"
+    | "confirmed"
+    | "completed"
+    | "cancelled"
+    | "need to be returned";
   paymentStatus?: "pending" | "deposit_paid" | "paid" | "refunded";
   createdAt?: string;
   updatedAt?: string;
@@ -84,7 +89,6 @@ const AdminBookings: React.FC = () => {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await fetchBookings();
-    console.log(bookings);
   };
 
   const updateBookingStatus = async (bookingId: string, newStatus: string) => {
@@ -335,6 +339,19 @@ const AdminBookings: React.FC = () => {
                               title="Bekor qilish"
                             >
                               <XCircle className="w-5 h-5" />
+                            </button>
+                          </>
+                        )}
+                        {booking.status === "need to be returned" && (
+                          <>
+                            <button
+                              onClick={() =>
+                                updateBookingStatus(booking._id, "completed")
+                              }
+                              className="p-2 text-green-600 hover:bg-green-50 rounded"
+                              title="Tugatish"
+                            >
+                              <CheckCircle className="w-5 h-5" />
                             </button>
                           </>
                         )}

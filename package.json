@@ -21,6 +21,7 @@
     "mongoose": "^8.18.1",
     "next": "15.5.3",
     "next-cloudinary": "^6.16.0",
+    "node-cron": "^4.2.1",
     "nodemailer": "^7.0.10",
     "pdfkit": "^0.17.2",
     "react": "19.1.0",
