@@ -1,18 +1,15 @@
-// src/app/api/admin/users/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import User from "@/models/User";
+import { connectDB } from "../../../../../lib/mongodb";
+import User from "../../../../../models/User";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { z } from "zod";
 
-// ------------------------
-// Async verifyAdmin
-// ------------------------
-const verifyAdmin = async (request: NextRequest) => {
+const verifyAdmin = (request: NextRequest) => {
   try {
     const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return null;
+    }
 
     const token = authHeader.split(" ")[1];
     const decoded: any = jwt.verify(
@@ -20,7 +17,9 @@ const verifyAdmin = async (request: NextRequest) => {
       process.env.JWT_SECRET || "your-secret-key"
     );
 
-    if (decoded.role !== "admin") return null;
+    if (decoded.role !== "admin") {
+      return null;
+    }
 
     return decoded;
   } catch (error) {
@@ -28,224 +27,241 @@ const verifyAdmin = async (request: NextRequest) => {
   }
 };
 
-// ------------------------
-// Zod schemas
-// ------------------------
-const updateUserSchema = z.object({
-  name: z.string().min(1).optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
-  role: z.enum(["user", "admin"]).optional(),
-  password: z.string().min(6).optional(),
-});
-
-const patchUserSchema = z.object({
-  isActive: z.boolean(),
-});
-
-// ------------------------
-// GET - Bitta user olish
-// ------------------------
+// GET - Bitta foydalanuvchini olish
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const admin = await verifyAdmin(request);
-    if (!admin)
+    const admin = verifyAdmin(request);
+    if (!admin) {
       return NextResponse.json(
         { success: false, message: "Admin huquqi kerak" },
         { status: 403 }
       );
+    }
 
     await connectDB();
 
     const user = await User.findById(params.id).select("-password").lean();
-    if (!user)
+
+    if (!user) {
       return NextResponse.json(
         { success: false, message: "Foydalanuvchi topilmadi" },
         { status: 404 }
       );
+    }
 
-    return NextResponse.json({ success: true, data: { user } });
+    return NextResponse.json({
+      success: true,
+      data: { user },
+    });
   } catch (error: any) {
     console.error("GET /api/admin/users/[id] error:", error);
     return NextResponse.json(
-      { success: false, message: "Xatolik", error: error.message },
+      {
+        success: false,
+        message: "Foydalanuvchi ma'lumotlarini olishda xatolik",
+        error: error.message,
+      },
       { status: 500 }
     );
   }
 }
 
-// ------------------------
-// PUT - User yangilash
-// ------------------------
+// PUT - Foydalanuvchini yangilash
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const admin = await verifyAdmin(request);
-    if (!admin)
+    const admin = verifyAdmin(request);
+    if (!admin) {
       return NextResponse.json(
         { success: false, message: "Admin huquqi kerak" },
         { status: 403 }
       );
+    }
 
     await connectDB();
-    const body = updateUserSchema.safeParse(await request.json());
-    if (!body.success)
-      return NextResponse.json(
-        { success: false, message: body.error.message },
-        { status: 400 }
-      );
 
-    const { name, email, phone, role, password } = body.data;
+    const body = await request.json();
+    const { name, email, phone, role, password } = body;
 
+    // Foydalanuvchini topish
     const user = await User.findById(params.id);
-    if (!user)
+
+    if (!user) {
       return NextResponse.json(
         { success: false, message: "Foydalanuvchi topilmadi" },
         { status: 404 }
       );
+    }
 
-    // Self role-change block
+    // O'zini o'chirish yoki role o'zgartirishni oldini olish
     if (admin.userId === params.id && role && role !== user.role) {
       return NextResponse.json(
-        { success: false, message: "O'zingizning rolni o'zgartira olmaysiz" },
+        {
+          success: false,
+          message: "O'zingizning rolengizni o'zgartira olmaysiz",
+        },
         { status: 400 }
       );
     }
 
-    // Email uniqueness
+    // Email unikal ekanligini tekshirish (agar o'zgartirilgan bo'lsa)
     if (email && email !== user.email) {
-      const existing = await User.findOne({ email });
-      if (existing)
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
         return NextResponse.json(
           { success: false, message: "Bu email band" },
           { status: 400 }
         );
+      }
     }
 
+    // Ma'lumotlarni yangilash
     if (name) user.name = name;
     if (email) user.email = email;
     if (phone) user.phone = phone;
     if (role) user.role = role;
-    if (password && password.trim() !== "")
-      user.password = await bcrypt.hash(password, 10);
+
+    // Agar parol o'zgartirilgan bo'lsa
+    if (password && password.trim() !== "") {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      user.password = hashedPassword;
+    }
 
     await user.save();
+
+    // Parolsiz qaytarish
     const updatedUser = await User.findById(params.id).select("-password");
 
     return NextResponse.json({
       success: true,
-      message: "Foydalanuvchi yangilandi",
+      message: "Foydalanuvchi muvaffaqiyatli yangilandi",
       data: { user: updatedUser },
     });
   } catch (error: any) {
     console.error("PUT /api/admin/users/[id] error:", error);
     return NextResponse.json(
-      { success: false, message: "Xatolik", error: error.message },
+      {
+        success: false,
+        message: "Foydalanuvchini yangilashda xatolik",
+        error: error.message,
+      },
       { status: 500 }
     );
   }
 }
 
-// ------------------------
-// DELETE - User o'chirish
-// ------------------------
+// DELETE - Foydalanuvchini o'chirish
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const admin = await verifyAdmin(request);
-    if (!admin)
+    const admin = verifyAdmin(request);
+    if (!admin) {
       return NextResponse.json(
         { success: false, message: "Admin huquqi kerak" },
         { status: 403 }
       );
+    }
 
     await connectDB();
 
-    if (admin.userId === params.id)
+    // O'zini o'chirishni oldini olish
+    if (admin.userId === params.id) {
       return NextResponse.json(
         { success: false, message: "O'zingizni o'chira olmaysiz" },
         { status: 400 }
       );
+    }
 
     const user = await User.findById(params.id);
-    if (!user)
+
+    if (!user) {
       return NextResponse.json(
         { success: false, message: "Foydalanuvchi topilmadi" },
         { status: 404 }
       );
+    }
 
     await User.findByIdAndDelete(params.id);
+
     return NextResponse.json({
       success: true,
-      message: "Foydalanuvchi o'chirildi",
+      message: "Foydalanuvchi muvaffaqiyatli o'chirildi",
     });
   } catch (error: any) {
     console.error("DELETE /api/admin/users/[id] error:", error);
     return NextResponse.json(
-      { success: false, message: "Xatolik", error: error.message },
+      {
+        success: false,
+        message: "Foydalanuvchini o'chirishda xatolik",
+        error: error.message,
+      },
       { status: 500 }
     );
   }
 }
 
-// ------------------------
-// PATCH - isActive (block/unblock)
-// ------------------------
+// PATCH -  statusini o'(block/unblock)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const admin = await verifyAdmin(request);
-    if (!admin)
+    const admin = verifyAdmin(request);
+    if (!admin) {
       return NextResponse.json(
         { success: false, message: "Admin huquqi kerak" },
         { status: 403 }
       );
+    }
 
     await connectDB();
-    const body = patchUserSchema.safeParse(await request.json());
-    if (!body.success)
-      return NextResponse.json(
-        { success: false, message: body.error.message },
-        { status: 400 }
-      );
 
-    const { isActive } = body.data;
+    const body = await request.json();
+    const { isActive } = body;
 
-    if (admin.userId === params.id)
+    // O'zini bloklashni oldini olish
+    if (admin.userId === params.id) {
       return NextResponse.json(
         { success: false, message: "O'zingizni bloklay olmaysiz" },
         { status: 400 }
       );
+    }
 
     const user = await User.findById(params.id);
-    if (!user)
+    if (!user) {
       return NextResponse.json(
         { success: false, message: "Foydalanuvchi topilmadi" },
         { status: 404 }
       );
+    }
 
-    user.isActive = isActive;
+    user.isActive = isActive; // 🔹 asosiy o'zgarish shu yerda
     await user.save();
 
     const updatedUser = await User.findById(params.id).select("-password");
+
     return NextResponse.json({
       success: true,
-      message: isActive ? "Foydalanuvchi aktiv" : "Foydalanuvchi bloklandi",
+      message: isActive
+        ? "Foydalanuvchi aktivlashtirildi"
+        : "Foydalanuvchi bloklandi",
       data: { user: updatedUser },
     });
   } catch (error: any) {
     console.error("PATCH /api/admin/users/[id] error:", error);
     return NextResponse.json(
-      { success: false, message: "Xatolik", error: error.message },
+      {
+        success: false,
+        message: "Foydalanuvchi statusini o'zgartirishda xatolik",
+        error: error.message,
+      },
       { status: 500 }
     );
   }
