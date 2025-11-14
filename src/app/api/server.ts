@@ -1,4 +1,4 @@
-import { startBookingStatusJob } from "@/jobs/updateBookingStatus";
+// import { startBookingStatusJob } from "@/jobs/updateBookingStatus";
 
-startBookingStatusJob();
-console.log("✅ Booking status cron job ishga tushdi");
+// startBookingStatusJob();
+// console.log("✅ Booking status cron job ishga tushdi");
