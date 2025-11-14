@@ -3,15 +3,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "../../../../lib/mongodb";
 import Payment from "@/models/Payment";
 import Booking from "@/models/Booking";
-import { writeFile } from "fs/promises";
-import { join } from "path";
 import jwt from "jsonwebtoken";
+import { v2 as cloudinary } from "cloudinary";
+
+// Cloudinary konfiguratsiyasi
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const verifyToken = (request: NextRequest) => {
   try {
     const authHeader = request.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-
     const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(
       token,
@@ -70,31 +75,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Screenshot saqlash
+    // Cloudinary ga upload qilish
     const bytes = await screenshot.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Public folder ga saqlash
-    const filename = `payment-${Date.now()}-${screenshot.name}`;
-    const filepath = join(
-      process.cwd(),
-      "public",
-      "uploads",
-      "payments",
-      filename
-    );
+    const uploadToCloudinary = () =>
+      new Promise<string>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "payments" },
+          (error, result) => {
+            if (error || !result) reject(error || "Upload error");
+            else resolve(result.secure_url);
+          }
+        );
+        stream.end(buffer);
+      });
 
-    // Ensure directory exists
-    const { mkdir } = await import("fs/promises");
-    const dir = join(process.cwd(), "public", "uploads", "payments");
-    try {
-      await mkdir(dir, { recursive: true });
-    } catch (error) {
-      // Directory already exists
-    }
-
-    await writeFile(filepath, buffer);
-    const screenshotUrl = `/uploads/payments/${filename}`;
+    const screenshotUrl = await uploadToCloudinary();
 
     // Payment yaratish
     const payment = await Payment.create({
@@ -103,7 +100,7 @@ export async function POST(request: NextRequest) {
       amount: amount,
       currency: "UZS",
       paymentMethod: paymentMethod,
-      status: "pending", // Admin tasdiqlashi kerak
+      status: "pending",
       paymentProvider: "manual",
       transactionId: transactionId || `MANUAL-${Date.now()}`,
       providerData: {
@@ -118,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     // Bookingni yangilash (pending holatida)
     await Booking.findByIdAndUpdate(bookingId, {
-      paymentStatus: "pending", // Admin tasdiqlagunga qadar
+      paymentStatus: "pending",
       status: "pending",
     });
 
