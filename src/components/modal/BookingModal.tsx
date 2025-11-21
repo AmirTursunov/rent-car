@@ -84,7 +84,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
       setError(null);
 
       const token =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        typeof window !== "undefined" ? localStorage.getItem("user") : null;
 
       if (!token) {
         setError("Tizimga kirish kerak");

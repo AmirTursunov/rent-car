@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import "@/models/User"; // ensure User schema is registered for populate
+import "@/models/User"; // Ensure User schema is registered
 import Car from "@/models/Car";
 import { verifyToken } from "@/lib/auth";
 import { ApiResponse } from "@/types";
 
-export async function GET({
-  params,
-}: {
-  params: { id: string };
-}): Promise<NextResponse<ApiResponse>> {
+// GET /api/cars/[id]
+export async function GET(
+  request: NextRequest,
+  context: { params: { id: string } }
+): Promise<NextResponse<ApiResponse>> {
   try {
-    // Next.js warning: await params before using its properties
-    const { id } = (await params) as { id?: string };
+    // 🔹 Dynamic params ni await qilamiz
+    const params = await context.params;
+    const id = params.id;
 
     if (!id) {
       return NextResponse.json(
@@ -57,12 +58,14 @@ export async function GET({
   }
 }
 
+// PUT /api/cars/[id]
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = (await params) as { id?: string };
+    const params = await context.params;
+    const id = params.id;
 
     if (!id) {
       return NextResponse.json(
@@ -78,11 +81,7 @@ export async function PUT(
     const user = await verifyToken(request);
     if (!user || user.role !== "admin") {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Ruxsat yo‘q",
-          error: "Ruxsat yo‘q",
-        },
+        { success: false, message: "Ruxsat yo‘q", error: "Ruxsat yo‘q" },
         { status: 403 }
       );
     }
@@ -124,12 +123,14 @@ export async function PUT(
   }
 }
 
+// DELETE /api/cars/[id]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = (await params) as { id?: string };
+    const params = await context.params;
+    const id = params.id;
 
     if (!id) {
       return NextResponse.json(
@@ -145,11 +146,7 @@ export async function DELETE(
     const user = await verifyToken(request);
     if (!user || user.role !== "admin") {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Ruxsat yo‘q",
-          error: "Ruxsat yo‘q",
-        },
+        { success: false, message: "Ruxsat yo‘q", error: "Ruxsat yo‘q" },
         { status: 403 }
       );
     }

@@ -521,100 +521,137 @@ const AdminPaymentsPage = () => {
 
       {/* Detail Modal */}
       {viewPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setViewPayment(null)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-900 transition"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <h2 className="text-xl font-bold mb-4">To'lov tafsilotlari</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b">
-                <span className="font-semibold text-gray-700">
-                  Transaction ID:
-                </span>
-                <span className="text-gray-900">
-                  {viewPayment.transactionId}
-                </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
+              <div>
+                <h3 className="text-lg font-semibold">To'lov tafsilotlari</h3>
+                <p className="text-sm text-gray-500">
+                  ID: {viewPayment.transactionId}
+                </p>
               </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="font-semibold text-gray-700">
-                  Foydalanuvchi:
-                </span>
-                <span className="text-gray-900">
-                  {viewPayment.user.name} ({viewPayment.user.email})
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="font-semibold text-gray-700">Summa:</span>
-                <span className="text-gray-900 font-bold">
-                  {viewPayment.amount.toLocaleString()} so'm
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="font-semibold text-gray-700">Usul:</span>
-                <span className="text-gray-900 capitalize">
+              <button
+                onClick={() => setViewPayment(null)}
+                className="p-2 hover:bg-gray-100 rounded transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-auto">
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Foydalanuvchi:</span>{" "}
+                  {viewPayment.user.name}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Email:</span>{" "}
+                  {viewPayment.user.email}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Summa:</span>{" "}
+                  {viewPayment.amount.toLocaleString()} UZS
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Usul:</span>{" "}
                   {viewPayment.paymentMethod}
-                </span>
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Status:</span>{" "}
+                  {getStatusBadge(viewPayment.status)}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Yaratilgan:</span>{" "}
+                  {new Date(viewPayment.createdAt).toLocaleString("uz-UZ")}
+                </p>
               </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="font-semibold text-gray-700">Status:</span>
-                <div>{getStatusBadge(viewPayment.status)}</div>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="font-semibold text-gray-700">Sana:</span>
-                <span className="text-gray-900">
-                  {new Date(viewPayment.createdAt).toLocaleDateString("uz-UZ", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </div>
+
+              {viewPayment.providerData && (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Jo'natuvchi karta:</span>{" "}
+                    {viewPayment.providerData.senderCardNumber}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Karta egasi:</span>{" "}
+                    {viewPayment.providerData.senderCardHolder}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Qabul qiluvchi karta:</span>{" "}
+                    {viewPayment.providerData.receiverCardNumber}
+                  </p>
+                  {viewPayment.providerData.transactionDate && (
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Tranzaksiya vaqti:</span>{" "}
+                      {new Date(
+                        viewPayment.providerData.transactionDate
+                      ).toLocaleString("uz-UZ")}
+                    </p>
+                  )}
+                  {viewPayment.providerData.transactionId && (
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Tranzaksiya ID:</span>{" "}
+                      {viewPayment.providerData.transactionId}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {viewPayment.providerData?.screenshotUrl && (
-                <div className="pt-4">
-                  <p className="font-semibold text-gray-700 mb-2">
-                    To'lov screenshot:
+                <div className="md:col-span-2">
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    To'lov cheki:
                   </p>
                   <img
                     src={viewPayment.providerData.screenshotUrl}
-                    alt="To'lov screenshot"
-                    className="w-full border rounded-lg"
+                    alt="Payment screenshot"
+                    className="w-full rounded-lg border shadow-sm"
                   />
                 </div>
               )}
             </div>
 
-            {canTakeAction(viewPayment.status) && (
-              <div className="flex gap-3 mt-6 pt-6 border-t">
-                <button
-                  onClick={() => {
-                    handleVerify(viewPayment._id, true);
-                  }}
-                  disabled={actionLoadingId === viewPayment._id}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
-                >
-                  Tasdiqlash
-                </button>
-                <button
-                  onClick={() => {
-                    setRejectModal({
-                      isOpen: true,
-                      paymentId: viewPayment._id,
-                      paymentDetails: viewPayment,
-                    });
-                  }}
-                  disabled={actionLoadingId === viewPayment._id}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
-                >
-                  Rad etish
-                </button>
-              </div>
-            )}
+            {/* Footer */}
+            <div className="px-6 py-4 border-t flex items-center justify-end gap-3 flex-shrink-0">
+              <button
+                onClick={() => setViewPayment(null)}
+                className="px-4 py-2 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+              >
+                Yopish
+              </button>
+              {canTakeAction(viewPayment.status) && (
+                <>
+                  <button
+                    onClick={() => handleVerify(viewPayment._id, true)}
+                    disabled={actionLoadingId === viewPayment._id}
+                    className="px-4 py-2  rounded bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 transition"
+                    title="Tasdiqlash"
+                  >
+                    {actionLoadingId === viewPayment._id
+                      ? "Tasdiqlanmoqda..."
+                      : "Tasdiqlash"}
+                  </button>
+                  <button
+                    onClick={() =>
+                      setRejectModal({
+                        isOpen: true,
+                        paymentId: viewPayment._id,
+                        paymentDetails: viewPayment,
+                      })
+                    }
+                    disabled={actionLoadingId === viewPayment._id}
+                    className="px-4 py-2 rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 transition"
+                    title="Rad etish"
+                  >
+                    {actionLoadingId === viewPayment._id
+                      ? "Biroz kuting..."
+                      : "Rad etish"}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "../../../../lib/mongodb";
 import Payment from "@/models/Payment";
 import Booking from "@/models/Booking";
-import jwt from "jsonwebtoken";
 import { v2 as cloudinary } from "cloudinary";
+import { jwtVerify } from "jose";
 
 // Cloudinary konfiguratsiyasi
 cloudinary.config({
@@ -13,24 +13,32 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const verifyToken = (request: NextRequest) => {
+// 🔒 Cookie'dan tokenni verify qilish
+async function verifyToken(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(
-      token,
+    const token = request.cookies.get("token")?.value;
+    if (!token) return null;
+
+    const secret = new TextEncoder().encode(
       process.env.JWT_SECRET || "your-secret-key"
     );
-    return decoded;
+    const { payload } = await jwtVerify(token, secret);
+
+    return {
+      userId: payload.userId as string,
+      email: payload.email as string,
+      role: payload.role as string,
+    };
   } catch (error) {
+    console.error("JWT verify error:", error);
     return null;
   }
-};
+}
 
+// 🔹 POST - manual payment yaratish
 export async function POST(request: NextRequest) {
   try {
-    const user = verifyToken(request);
+    const user = await verifyToken(request);
     if (!user) {
       return NextResponse.json(
         { success: false, message: "Autentifikatsiya xatosi" },
@@ -51,7 +59,6 @@ export async function POST(request: NextRequest) {
     const transactionId = formData.get("transactionId") as string;
     const receiverCardNumber = formData.get("receiverCardNumber") as string;
 
-    // Validatsiya
     if (!bookingId || !paymentMethod || !amount || !screenshot) {
       return NextResponse.json(
         { success: false, message: "Barcha maydonlarni to'ldiring" },
@@ -66,7 +73,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Bookingni tekshirish
     const booking = await Booking.findById(bookingId);
     if (!booking) {
       return NextResponse.json(
@@ -75,7 +81,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cloudinary ga upload qilish
     const bytes = await screenshot.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
@@ -93,13 +98,12 @@ export async function POST(request: NextRequest) {
 
     const screenshotUrl = await uploadToCloudinary();
 
-    // Payment yaratish
     const payment = await Payment.create({
       booking: bookingId,
       user: booking.user,
-      amount: amount,
+      amount,
       currency: "UZS",
-      paymentMethod: paymentMethod,
+      paymentMethod,
       status: "pending",
       paymentProvider: "manual",
       transactionId: transactionId || `MANUAL-${Date.now()}`,
@@ -113,7 +117,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Bookingni yangilash (pending holatida)
     await Booking.findByIdAndUpdate(bookingId, {
       paymentStatus: "pending",
       status: "pending",
@@ -137,10 +140,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - Foydalanuvchi to'lovlarini olish
+// 🔹 GET - foydalanuvchi to'lovlarini olish
 export async function GET(request: NextRequest) {
   try {
-    const user = verifyToken(request);
+    const user = await verifyToken(request);
     if (!user) {
       return NextResponse.json(
         { success: false, message: "Autentifikatsiya xatosi" },
@@ -151,17 +154,14 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const payments = await Payment.find({
-      user: (user as any).userId || (user as any).id,
+      user: user.userId,
       paymentProvider: "manual",
     })
       .populate("booking")
       .sort({ createdAt: -1 })
       .lean();
 
-    return NextResponse.json({
-      success: true,
-      data: { payments },
-    });
+    return NextResponse.json({ success: true, data: { payments } });
   } catch (error: any) {
     console.error("Get manual payments error:", error);
     return NextResponse.json(

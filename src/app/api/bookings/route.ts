@@ -1,3 +1,5 @@
+// app/api/bookings/route.ts
+
 import { type NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
@@ -15,11 +17,10 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Admin email yuborish funksiyasi
+// Admin email yuborish
 const sendAdminNotification = async (booking: any, user: any, car: any) => {
   try {
     const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
-
     if (!adminEmail) {
       console.warn("Admin email not configured");
       return;
@@ -42,14 +43,8 @@ const sendAdminNotification = async (booking: any, user: any, car: any) => {
             .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
             .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
             .info-box { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #667eea; }
-            .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
-            .info-row:last-child { border-bottom: none; }
-            .label { font-weight: bold; color: #6b7280; }
-            .value { color: #111827; }
             .price-box { background: #fef3c7; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; }
             .price { font-size: 32px; font-weight: bold; color: #f59e0b; }
-            .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 10px 5px; }
-            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
             .alert { background: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 6px; margin: 15px 0; }
           </style>
         </head>
@@ -59,108 +54,70 @@ const sendAdminNotification = async (booking: any, user: any, car: any) => {
               <h1>🚗 Yangi Buyurtma!</h1>
               <p>Buyurtma raqami: ${booking.bookingNumber}</p>
             </div>
-            
             <div class="content">
               <div class="alert">
-                <strong>⚠️ Diqqat!</strong> Yangi buyurtma qabul qilinishini kutmoqda. Iltimos, to'lovni tekshiring va buyurtmani tasdiqlang.
+                <strong>⚠️ Diqqat!</strong> Yangi buyurtma qabul qilinishini kutmoqda.
               </div>
-
               <div class="info-box">
-                <h3>👤 Mijoz ma'lumotlari</h3>
-                <div class="info-row">
-                  <span class="label">Ism:</span>
-                  <span class="value">${user.name}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Email:</span>
-                  <span class="value">${user.email}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Telefon:</span>
-                  <span class="value">${
-                    booking.phoneNumber || "Ko'rsatilmagan"
-                  }</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Passport:</span>
-                  <span class="value">${booking.passport?.series || ""} ${
-        booking.passport?.number || ""
-      }</span>
-                </div>
+                <h3>👤 Mijoz: ${user.name}</h3>
+                <p>Email: ${user.email}</p>
+                <p>Telefon: ${booking.phoneNumber || "—"}</p>
               </div>
-
               <div class="info-box">
-                <h3>🚗 Mashina ma'lumotlari</h3>
-                <div class="info-row">
-                  <span class="label">Mashina:</span>
-                  <span class="value">${car.brand} ${car.carModel} (${
-        car.year || ""
-      })</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Boshlanish:</span>
-                  <span class="value">${startDate}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Tugash:</span>
-                  <span class="value">${endDate}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Manzil:</span>
-                  <span class="value">${
-                    booking.location || "Ko'rsatilmagan"
-                  }</span>
-                </div>
+                <h3>🚗 Mashina: ${car.brand} ${car.carModel}</h3>
+                <p>Sana: ${startDate} - ${endDate}</p>
+                <p>Manzil: ${booking.location}</p>
               </div>
-
               <div class="price-box">
-                <p style="margin: 0; color: #6b7280;">Jami summa</p>
                 <div class="price">${booking.totalPrice.toLocaleString()} so'm</div>
-                <p style="margin: 10px 0 0 0; color: #6b7280;">Depozit (${
-                  booking.depositPercent
-                }%): ${booking.depositAmount.toLocaleString()} so'm</p>
+                <p>Depozit: ${booking.depositAmount.toLocaleString()} so'm</p>
               </div>
-
-              ${
-                booking.notes
-                  ? `
-              <div class="info-box">
-                <h3>📝 Qo'shimcha izoh</h3>
-                <p>${booking.notes}</p>
-              </div>
-              `
-                  : ""
-              }
-
-              <div style="text-align: center; margin-top: 30px;">
-                <a href="${
-                  process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-                }/admin/bookings" class="button">
-                  Buyurtmalarni ko'rish
-                </a>
-              </div>
-            </div>
-
-            <div class="footer">
-              <p>Bu email avtomatik yuborildi</p>
-              <p>Rent Car Admin Panel</p>
             </div>
           </div>
         </body>
         </html>
       `,
     });
-
-    console.log("Admin notification sent successfully");
+    console.log("✅ Admin notification sent");
   } catch (error) {
-    console.error("Failed to send admin notification:", error);
+    console.error("❌ Failed to send admin notification:", error);
   }
 };
+
+// Sana kesishishini tekshirish
+function datesOverlap(
+  start1: Date,
+  end1: Date,
+  start2: Date,
+  end2: Date
+): boolean {
+  // Sanalarni timestamp'ga o'tkazamiz (vaqt qismisiz)
+  const s1 = start1.getTime();
+  const e1 = end1.getTime();
+  const s2 = start2.getTime();
+  const e2 = end2.getTime();
+
+  // Kesishish: start1 <= end2 AND end1 >= start2
+  const overlaps = s1 <= e2 && e1 >= s2;
+
+  // Debug log
+  console.log("📅 Date overlap check:", {
+    range1: `${start1.toISOString().split("T")[0]} - ${
+      end1.toISOString().split("T")[0]
+    }`,
+    range2: `${start2.toISOString().split("T")[0]} - ${
+      end2.toISOString().split("T")[0]
+    }`,
+    overlaps,
+  });
+
+  return overlaps;
+}
 
 // 🟢 POST - Yangi buyurtma yaratish
 export async function POST(request: NextRequest) {
   try {
-    // ✅ Cookie'dan token olish va verify qilish (jose bilan - async!)
+    // ✅ Cookie'dan token olish
     const user = await verifyToken(request);
 
     if (!user) {
@@ -196,7 +153,7 @@ export async function POST(request: NextRequest) {
       notes,
     } = body;
 
-    // ✅ Validatsiya
+    // ✅ Majburiy maydonlar
     if (!carId || !startDate || !endDate || !location) {
       return NextResponse.json(
         { success: false, message: "Barcha majburiy maydonlarni to'ldiring" },
@@ -226,7 +183,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ Mavjud mashinalar borligini tekshirish
     if (car.availableCount <= 0) {
       return NextResponse.json(
         {
@@ -237,7 +193,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ Sanalarni validatsiya qilish
+    // ✅ Sanalarni tekshirish
     const start = new Date(startDate);
     const end = new Date(endDate);
     start.setHours(0, 0, 0, 0);
@@ -262,6 +218,73 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // ✅ 1. User buyurtmalari sonini tekshirish (maksimal 3 ta)
+    const activeBookingsCount = await Booking.countDocuments({
+      user: user.userId,
+      status: { $in: ["pending", "confirmed", "approved", "active"] },
+    });
+
+    if (activeBookingsCount >= 3) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "❌ Siz maksimal 3 ta faol buyurtma qilishingiz mumkin. Avval joriy buyurtmalaringizni tugatishingiz kerak.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // ✅ 2. Sanalar kesishishini tekshirish
+    const existingBookings = await Booking.find({
+      user: user.userId,
+      status: { $in: ["pending", "confirmed", "approved", "active"] },
+    }).lean();
+
+    console.log("🔍 Checking date conflicts for user:", user.userId);
+    console.log("📋 Existing bookings:", existingBookings.length);
+    console.log("📅 New booking dates:", {
+      start: start.toISOString().split("T")[0],
+      end: end.toISOString().split("T")[0],
+    });
+
+    for (const existingBooking of existingBookings) {
+      const existingStart = new Date(existingBooking.startDate);
+      const existingEnd = new Date(existingBooking.endDate);
+
+      // ✅ MUHIM: Vaqtni 00:00:00 ga o'rnatish
+      existingStart.setHours(0, 0, 0, 0);
+      existingEnd.setHours(0, 0, 0, 0);
+
+      console.log("🔄 Checking against booking:", {
+        bookingNumber: existingBooking.bookingNumber,
+        existingStart: existingStart.toISOString().split("T")[0],
+        existingEnd: existingEnd.toISOString().split("T")[0],
+      });
+
+      if (datesOverlap(start, end, existingStart, existingEnd)) {
+        const conflictStart = existingStart.toLocaleDateString("uz-UZ");
+        const conflictEnd = existingEnd.toLocaleDateString("uz-UZ");
+
+        console.log("❌ Date conflict detected!");
+
+        return NextResponse.json(
+          {
+            success: false,
+            message: `❌ Siz bu sanalarda allaqachon buyurtma qilgansiz (${conflictStart} - ${conflictEnd}). Boshqa sanani tanlang.`,
+            conflictingBooking: {
+              bookingNumber: existingBooking.bookingNumber,
+              startDate: conflictStart,
+              endDate: conflictEnd,
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    console.log("✅ No date conflicts found");
 
     // ✅ Narxni hisoblash
     const days = Math.ceil(
@@ -314,7 +337,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // ✅ Populate qilish
+    // ✅ Populate
     await booking.populate([
       {
         path: "car",
@@ -324,7 +347,7 @@ export async function POST(request: NextRequest) {
       { path: "user", select: "name email role" },
     ]);
 
-    // ✅ Adminga email yuborish (async, blocking emas)
+    // ✅ Admin email (async)
     sendAdminNotification(
       {
         bookingNumber,
@@ -343,15 +366,13 @@ export async function POST(request: NextRequest) {
       },
       booking.user,
       car
-    ).catch((err) => {
-      console.error("Admin email notification failed:", err);
-    });
+    ).catch((err) => console.error("Admin email failed:", err));
 
     return NextResponse.json(
       {
         success: true,
         message:
-          "Buyurtma muvaffaqiyatli yaratildi. Admin tasdiqlashini kuting.",
+          "✅ Buyurtma muvaffaqiyatli yaratildi! Admin tasdiqlashini kuting.",
         data: { booking },
       },
       { status: 201 }
@@ -369,12 +390,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 🔵 GET - Admin barcha buyurtmalarni ko'radi, user esa o'zini
+// 🔵 GET - Buyurtmalarni olish
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    // ✅ Cookie'dan token olish va verify qilish (jose bilan - async!)
+    // ✅ Cookie'dan token
     const user = await verifyToken(request);
 
     if (!user) {
@@ -387,27 +408,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // ✅ URL params
     const { searchParams } = new URL(request.url);
     const carId = searchParams.get("car");
     const status = searchParams.get("status");
 
-    // ✅ Filter: Admin bo'lsa barcha bookinglar, user bo'lsa faqat o'zniki
+    // ✅ Filter: Admin - barcha, User - faqat o'zniki
     let filter: any = isAdmin(user) ? {} : { user: user.userId };
 
-    // Car ID bo'yicha filter
     if (carId) {
       filter.car = carId;
     }
 
-    // Status filter (active = pending yoki confirmed)
     if (status === "active") {
-      filter.status = { $in: ["pending", "confirmed", "approved"] };
+      filter.status = { $in: ["pending", "confirmed", "approved", "active"] };
     } else if (status) {
       filter.status = status;
     }
 
-    // ✅ Bookinglarni olish
     const bookings = await Booking.find(filter)
       .populate(
         "car",

@@ -46,7 +46,7 @@ interface Stats {
 
 const fetcher = async (url: string) => {
   const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    typeof window !== "undefined" ? localStorage.getItem("user") : null;
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
@@ -64,7 +64,7 @@ export default function MyBookingsPage() {
     fetcher,
     {
       revalidateOnFocus: false,
-      dedupingInterval: 60000, // Cache for 60 seconds
+      dedupingInterval: 30000, // Cache for 30 seconds
       focusThrottleInterval: 300000, // Don't revalidate on focus for 5 min
     }
   );
@@ -123,6 +123,11 @@ export default function MyBookingsPage() {
         label: "Kutilmoqda",
       },
       deposit_paid: {
+        c: "text-green-700",
+        bg: "bg-green-100",
+        label: "Depozit to'langan",
+      },
+      paid: {
         c: "text-green-700",
         bg: "bg-green-100",
         label: "Depozit to'langan",

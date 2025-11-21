@@ -100,7 +100,7 @@ const ManualPaymentModal = ({
       }
 
       const token =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        typeof window !== "undefined" ? localStorage.getItem("user") : null;
 
       // FormData yaratish
       const formData = new FormData();

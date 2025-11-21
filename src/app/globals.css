@@ -2,10 +2,10 @@
 
 /* App-wide reusable gradient background matching CTASection */
 .app-gradient-bg {
-	@apply bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900;
+  @apply bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900;
 }
 
 /* Smooth scrolling for in-page anchors (e.g., #contact) */
 html {
-	scroll-behavior: smooth;
+  scroll-behavior: smooth;
 }
