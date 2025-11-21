@@ -5,6 +5,7 @@ import NavbarGuard from "@/components/NavbarGuard";
 import Footer from "@/components/Footer";
 import AppProviders from "@/components/AppProviders";
 import { getSettings } from "@/lib/function";
+import FooterGuard from "@/components/FooterGuard";
 // import "./api/server";
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,7 +37,7 @@ export default async function RootLayout({
         <AppProviders>
           <main className="app-gradient-bg">{children}</main>
         </AppProviders>
-        <Footer settings={settings} />
+        <FooterGuard settings={settings} />
       </body>
     </html>
   );

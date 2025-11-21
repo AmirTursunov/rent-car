@@ -44,7 +44,7 @@ export async function POST(
       );
     }
 
-    // Emailni normalizatsiya (kichik harf)
+    // Emailni normalizatsiya
     const normalizedEmail = email.trim().toLowerCase();
 
     // Email format tekshirish
@@ -88,8 +88,9 @@ export async function POST(
     // Parolni hashlash
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Agar email admin@gmail.com bo'lsa role admin qilib saqlaymiz
-    const role = normalizedEmail === "admin@gmail.com" ? "admin" : "user";
+    // Admin emailni tekshirish
+    const role =
+      normalizedEmail === "amirtursunov2@gmail.com" ? "admin" : "user";
 
     // Yangi foydalanuvchi yaratish
     const user = await User.create({
@@ -111,8 +112,8 @@ export async function POST(
       { expiresIn: "7d" }
     );
 
-    // Tokenni cookie sifatida ham qo'yish (xohlasangiz)
-    const res = NextResponse.json({
+    // Response yaratish (faqat user ma'lumotlari)
+    const response = NextResponse.json({
       success: true,
       message: "Ro'yxatdan o'tish muvaffaqiyatli",
       data: {
@@ -123,14 +124,22 @@ export async function POST(
           phone: user.phone,
           role: user.role,
         },
-        token,
+        // Token yo'q! Cookie'da saqlanadi
       },
     });
 
-    // Agar cookie orqali saqlamoqchi bo'lsangiz:
-    // res.cookies.set("token", token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 });
+    // 🔒 httpOnly cookie'da saqlash (XSS'dan himoya)
+    response.cookies.set({
+      name: "token",
+      value: token,
+      httpOnly: true, // JavaScript orqali o'qib bo'lmaydi
+      secure: process.env.NODE_ENV === "production", // Faqat HTTPS
+      sameSite: "lax", // CSRF himoyasi
+      maxAge: 7 * 24 * 60 * 60, // 7 kun
+      path: "/", // Barcha yo'llarda ishlaydi
+    });
 
-    return res;
+    return response;
   } catch (error) {
     console.error("Register error:", error);
     return NextResponse.json(

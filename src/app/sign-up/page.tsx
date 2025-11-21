@@ -2,27 +2,27 @@
 
 import { useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2, Lock, Mail, Phone, UserIcon } from "lucide-react";
 
 interface FormData {
   name: string;
   email: string;
   password: string;
   phone: string;
-  role?: string;
 }
 
 interface AuthResponse {
   success: boolean;
   message: string;
   data?: {
-    token: string;
     user: {
       id: string;
       name: string;
       email: string;
       phone: string;
-      role?: string;
+      role: string;
     };
+    // Token yo'q - cookie'da saqlanadi
   };
   error?: string;
 }
@@ -49,34 +49,32 @@ export default function RegisterForm() {
     setError("");
 
     try {
-      // ✅ Agar admin email bo‘lsa, role ni "admin" qilib yuboramiz
-      const dataToSend = {
-        ...formData,
-        role: formData.email === "admin@gmail.com" ? "admin" : "user",
-      };
-
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dataToSend),
+        body: JSON.stringify(formData),
+        credentials: "include", // 🔒 Cookie yuborish uchun kerak
       });
 
       const data: AuthResponse = await response.json();
 
       if (!response.ok) throw new Error(data.error || "Xatolik yuz berdi");
 
-      // ✅ localStorage ga to‘g‘ri saqlash
-      localStorage.setItem("token", data.data!.token);
-      localStorage.setItem("user", JSON.stringify(data.data!.user));
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("auth-changed"));
-      }
+      // ✅ Faqat user ma'lumotlarini localStorage'ga saqlaymiz (token yo'q!)
+      if (data.data) {
+        localStorage.setItem("user", JSON.stringify(data.data.user));
 
-      // ✅ Admin bo‘lsa admin sahifasiga yo‘naltiramiz
-      if (dataToSend.role === "admin") {
-        router.push("/admin");
-      } else {
-        router.push("/");
+        // Auth state o'zgarganini bildirish
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("auth-changed"));
+        }
+
+        // Yo'naltirish
+        if (data.data.user.role === "admin") {
+          router.push("/admin");
+        } else {
+          router.push("/");
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -86,76 +84,91 @@ export default function RegisterForm() {
   };
 
   return (
-    <form
-      className="max-w-md mx-auto mt-30 shadow-lg rounded-2xl p-8 space-y-6"
-      style={{ backgroundColor: "#ffffff" }}
-      onSubmit={handleSubmit}
-    >
-      <h2
-        className="text-2xl font-bold text-center"
-        style={{ color: "#1f2937" }}
+    <div className="min-h-[712px] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <form
+        onSubmit={handleSubmit}
+        className="w-[450px] mx-auto mt-20 shadow-lg rounded-2xl p-8 space-y-6 bg-white/10 backdrop-blur-xl border border-white/20"
       >
-        Ro'yxatdan o'tish
-      </h2>
-
-      {error && (
-        <div
-          className="rounded-lg p-3 border text-sm"
-          style={{
-            backgroundColor: "#fef2f2",
-            borderColor: "#fecaca",
-            color: "#b91c1c",
-          }}
-        >
-          {error}
+        {/* Sarlovha */}
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center border border-white/30">
+            <UserIcon className="text-white w-7 h-7" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-white">
+              Ro'yxatdan o'tish
+            </h1>
+            <p className="text-white/60 text-sm">Yangi akkaunt yarating</p>
+          </div>
         </div>
-      )}
 
-      {["name", "email", "password", "phone"].map((field) => (
-        <div key={field} className="space-y-1">
-          <label
-            htmlFor={field}
-            className="text-sm font-medium"
-            style={{ color: "#374151" }}
-          >
-            {field === "name"
-              ? "Ism"
-              : field === "email"
-              ? "Elektron pochta"
-              : field === "password"
-              ? "Parol"
-              : "Telefon raqami"}
-          </label>
-          <input
-            id={field}
-            name={field}
-            type={field === "password" ? "password" : "text"}
-            required
-            className="block w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-blue-500 outline-none transition"
-            style={{ borderColor: "#d1d5db" }}
-            placeholder={
-              field === "name"
-                ? "Ismingiz"
+        {/* Xato xabari */}
+        {error && (
+          <div className="rounded-lg p-3 border text-sm bg-red-50 border-red-200 text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* FIELDS */}
+        {["name", "email", "password", "phone"].map((field) => (
+          <div key={field} className="space-y-1">
+            <label
+              htmlFor={field}
+              className="text-sm font-medium text-white mb-1 block"
+            >
+              {field === "name"
+                ? "Ism"
                 : field === "email"
-                ? "Elektron pochta manzilingiz"
+                ? "Elektron pochta"
                 : field === "password"
-                ? "Parolingiz"
-                : "Telefon raqamingiz"
-            }
-            value={(formData as any)[field]}
-            onChange={handleChange}
-          />
-        </div>
-      ))}
+                ? "Parol"
+                : "Telefon raqami"}
+            </label>
+            <div className="relative">
+              {field === "name" && (
+                <UserIcon className="absolute left-3 top-2.5 w-4 h-4 text-white/40" />
+              )}
+              {field === "email" && (
+                <Mail className="absolute left-3 top-2.5 w-4 h-4 text-white/40" />
+              )}
+              {field === "password" && (
+                <Lock className="absolute left-3 top-2.5 w-4 h-4 text-white/40" />
+              )}
+              {field === "phone" && (
+                <Phone className="absolute left-3 top-2.5 w-4 h-4 text-white/40" />
+              )}
+              <input
+                id={field}
+                name={field}
+                type={field === "password" ? "password" : "text"}
+                required
+                placeholder={
+                  field === "name"
+                    ? "Ismingiz"
+                    : field === "email"
+                    ? "Elektron pochta manzilingiz"
+                    : field === "password"
+                    ? "Parolingiz"
+                    : "Telefon raqamingiz"
+                }
+                value={(formData as any)[field]}
+                onChange={handleChange}
+                className="w-full pl-10 bg-white/10 text-white border border-white/20 rounded-lg px-3 py-2.5 text-sm placeholder-white/40 focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400/50 outline-none"
+              />
+            </div>
+          </div>
+        ))}
 
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full flex items-center justify-center py-3 px-4 rounded-lg text-white font-semibold transition-colors"
-        style={{ backgroundColor: isLoading ? "#3b82f6cc" : "#3b82f6" }}
-      >
-        {isLoading ? "Yuklanmoqda..." : "Ro'yxatdan o'tish"}
-      </button>
-    </form>
+        {/* SUBMIT */}
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full flex items-center justify-center py-3 px-4 rounded-lg text-black font-semibold transition-colors bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50"
+        >
+          {isLoading && <Loader2 className="animate-spin w-5 h-5 mr-2" />}
+          {isLoading ? "Yuklanmoqda..." : "Ro'yxatdan o'tish"}
+        </button>
+      </form>
+    </div>
   );
 }

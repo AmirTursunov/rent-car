@@ -1,57 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Payment from "@/models/Payment";
-import jwt from "jsonwebtoken";
+import "@/models/User";
+import { verifyToken } from "@/lib/auth";
 
-// Token tekshirish helper function
-const verifyToken = (request: NextRequest) => {
-  try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return null;
-    }
+// ✅ lib/auth.ts'dagi verifyToken ishlatamiz (cookie'dan o'qiydi)
 
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "your-secret-key"
-    );
-    return decoded;
-  } catch (error) {
-    return null;
-  }
-};
+// Admin check
+const isAdmin = (user: any) => user?.role === "admin";
 
-let cachedStatistics: any = null;
-let statisticsLastUpdate = 0;
-const STATS_CACHE_DURATION = 60000; // 60 seconds
-
-const getStatistics = async () => {
-  const now = Date.now();
-  if (cachedStatistics && now - statisticsLastUpdate < STATS_CACHE_DURATION) {
-    return cachedStatistics;
-  }
-
-  const statistics = await Payment.aggregate([
-    {
-      $group: {
-        _id: "$status",
-        count: { $sum: 1 },
-        total: { $sum: "$amount" },
-      },
-    },
-  ]);
-
-  cachedStatistics = statistics;
-  statisticsLastUpdate = now;
-  return statistics;
-};
-
-// GET - Barcha to'lovlarni olish
+// GET - Payments
 export async function GET(request: NextRequest) {
   try {
-    // Token tekshirish
-    const user = verifyToken(request);
+    await connectDB();
+
+    // ✅ Cookie'dan token o'qish
+    const user = await verifyToken(request);
     if (!user) {
       return NextResponse.json(
         { success: false, message: "Autentifikatsiya xatosi" },
@@ -59,23 +23,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    await connectDB();
-
-    // Query parametrlarni olish
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
-    const paymentMethod = searchParams.get("paymentMethod");
+    const paymentMethod = searchParams.get("method"); // method'ga o'zgartirdim
     const userId = searchParams.get("userId");
+    const search = searchParams.get("search") || "";
     const page = Number.parseInt(searchParams.get("page") || "1");
-    const limit = Number.parseInt(searchParams.get("limit") || "50");
+    const limit = Number.parseInt(searchParams.get("limit") || "20");
 
-    const filter: any = {};
-    if (status && status !== "all") filter.status = status;
-    if (paymentMethod && paymentMethod !== "all")
+    // Filter: admin bo'lsa barcha, user bo'lsa faqat o'zi
+    const filter: any = isAdmin(user) ? {} : { user: user.userId };
+
+    if (status && status !== "all" && status !== "") filter.status = status;
+    if (paymentMethod && paymentMethod !== "all" && paymentMethod !== "")
       filter.paymentMethod = paymentMethod;
-    if (userId) filter.user = userId;
+    if (userId && isAdmin(user)) filter.user = userId;
+
+    // Search filter
+    if (search) {
+      filter.$or = [
+        { transactionId: { $regex: search, $options: "i" } },
+        { "user.name": { $regex: search, $options: "i" } },
+        { "user.email": { $regex: search, $options: "i" } },
+      ];
+    }
 
     const payments = await Payment.find(filter)
+      .populate("user", "name email phone")
       .select(
         "_id transactionId amount paymentMethod status createdAt user paymentProvider providerData"
       )
@@ -84,42 +58,20 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .skip((page - 1) * limit);
 
-    const userIds = [...new Set(payments.map((p: any) => p.user))];
-    const usersMap = new Map();
-
-    if (userIds.length > 0) {
-      const users = await Payment.db
-        .collection("users")
-        .find({ _id: { $in: userIds } })
-        .toArray();
-      users.forEach((u: any) => usersMap.set(u._id.toString(), u));
-    }
-
-    // Combine user data with payments
-    const enrichedPayments = payments.map((p: any) => ({
-      ...p,
-      user: usersMap.get(p.user.toString()) || {
-        name: "Unknown",
-        email: "unknown@email.com",
-      },
-    }));
-
-    // Jami soni
     const total = await Payment.countDocuments(filter);
-
-    const statistics = await getStatistics();
+    const hasMore = page * limit < total;
 
     return NextResponse.json({
       success: true,
       data: {
-        payments: enrichedPayments,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit),
-        },
-        statistics,
+        payments,
+        hasMore,
+      },
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
       },
     });
   } catch (error: any) {
@@ -128,6 +80,66 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         message: "To'lovlarni yuklashda xatolik",
+        error: error.message,
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// POST - Payment create
+export async function POST(request: NextRequest) {
+  try {
+    await connectDB();
+
+    // ✅ Cookie'dan token o'qish
+    const user = await verifyToken(request);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: "Autentifikatsiya xatosi" },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const {
+      amount,
+      paymentMethod,
+      providerData,
+      booking,
+      transactionId,
+      paymentProvider,
+    } = body;
+
+    if (!amount || !paymentMethod) {
+      return NextResponse.json(
+        { success: false, message: "Majburiy maydonlar yetarli emas" },
+        { status: 400 }
+      );
+    }
+
+    const payment = await Payment.create({
+      user: user.userId,
+      amount,
+      paymentMethod,
+      providerData,
+      booking,
+      transactionId:
+        transactionId ||
+        `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      paymentProvider,
+      status: "pending",
+    });
+
+    await payment.populate("user", "name email phone");
+
+    return NextResponse.json({ success: true, data: payment }, { status: 201 });
+  } catch (error: any) {
+    console.error("POST /api/payments error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "To'lov yaratishda xatolik",
         error: error.message,
       },
       { status: 500 }

@@ -165,8 +165,8 @@ export async function PUT(
 // 🔹 DELETE /api/bookings/[id]
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
-): Promise<NextResponse<ApiResponse>> {
+  context: { params: { id: string } } // params shu yerda
+): Promise<NextResponse> {
   try {
     const user = await verifyToken(request);
     if (!user) {
@@ -180,7 +180,7 @@ export async function DELETE(
       );
     }
 
-    const { id } = context.params;
+    const { id } = context.params; // params.id o‘rniga context.params destructure qiling
     await connectDB();
 
     const booking = await Booking.findById(id).populate("car");
@@ -195,7 +195,6 @@ export async function DELETE(
       );
     }
 
-    // ✅ Faqat admin yoki o'sha user o'chira oladi
     if (user.role !== "admin" && booking.user.toString() !== user.userId) {
       return NextResponse.json(
         {
@@ -207,16 +206,10 @@ export async function DELETE(
       );
     }
 
-    // ✅ Agar booking pending yoki approved bo'lsa, count'ni qaytarish
     if (booking.status === "pending" || booking.status === "approved") {
       await Car.findByIdAndUpdate(booking.car._id, {
-        $inc: {
-          availableCount: 1,
-          bookedCount: -1,
-        },
-        $set: {
-          available: true,
-        },
+        $inc: { availableCount: 1, bookedCount: -1 },
+        $set: { available: true },
       });
     }
 

@@ -53,23 +53,17 @@ const AdminDashboardPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const token =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-      if (!token) {
-        setError("Token topilmadi");
-        setLoading(false);
-        return;
-      }
-
       const response = await fetch("/api/dashboard/stats", {
+        method: "GET",
+        credentials: "include", // 🍪 cookie yuborish uchun muhim
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
 
-      if (!response.ok) throw new Error("Yuklab bo'lmadi");
+      if (!response.ok) {
+        throw new Error("Ma'lumotlarni yuklab bo'lmadi");
+      }
 
       const data = await response.json();
 
@@ -85,7 +79,7 @@ const AdminDashboardPage: React.FC = () => {
             ).length || 0,
           availableCars:
             data.data.cars?.filter((car: any) => car.available === true)
-              .length || 0, // ✅ faqat available = true
+              .length || 0,
         });
 
         if (data.data.recentBookings) {
@@ -95,7 +89,7 @@ const AdminDashboardPage: React.FC = () => {
 
       setLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Xatolik");
+      setError(err instanceof Error ? err.message : "Xatolik yuz berdi");
       setLoading(false);
     }
   };

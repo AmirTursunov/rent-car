@@ -15,13 +15,13 @@ import { PaymentSkeleton } from "./payment-skeleton";
 
 interface Payment {
   _id: string;
-  booking: string;
+  booking?: string;
   amount: number;
   paymentMethod: string;
   status: string;
   transactionId: string;
   createdAt: string;
-  user: { name: string; email: string };
+  user: { _id?: string; name: string; email: string };
   paymentProvider?: string;
   providerData?: {
     senderCardNumber?: string;
@@ -35,7 +35,7 @@ interface Payment {
 
 const AdminPaymentsPage = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -57,9 +57,7 @@ const AdminPaymentsPage = () => {
   const [hasMore, setHasMore] = useState(true);
   const ITEMS_PER_PAGE = 20;
 
-  const getToken = () =>
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
+  // Fetch all payments
   const fetchPayments = async (
     pageNum = 1,
     search = "",
@@ -69,34 +67,40 @@ const AdminPaymentsPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const token = getToken();
-
-      if (!token) {
-        setError("Token topilmadi");
-        setLoading(false);
-        return;
-      }
 
       const params = new URLSearchParams({
         page: pageNum.toString(),
         limit: ITEMS_PER_PAGE.toString(),
-        search: search,
-        status: status === "all" ? "" : status,
-        method: method === "all" ? "" : method,
       });
 
-      const res = await fetch(`/api/payments?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      // Faqat bo'sh bo'lmasa qo'shish
+      if (search) params.append("search", search);
+      if (status && status !== "all") params.append("status", status);
+      if (method && method !== "all") params.append("method", method);
+
+      const res = await fetch(`/api/payments?${params.toString()}`, {
+        method: "GET",
+        credentials: "include", // ✅ Cookie yuboradi
       });
-      if (!res.ok) throw new Error("Yuklab bo'lmadi");
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.message || `Server xatosi: ${res.status}`);
+      }
 
       const data = await res.json();
+
       if (data.success) {
-        setPayments(data.data.payments || []);
-        setHasMore(data.data.hasMore || false);
+        // ✅ API structure'ga moslashgan
+        const fetchedPayments = data.data?.payments || data.data || [];
+        setPayments(fetchedPayments);
+        setHasMore(data.data?.hasMore || false);
         setPage(pageNum);
+      } else {
+        throw new Error(data.message || "Ma'lumotlarni yuklashda xatolik");
       }
     } catch (err) {
+      console.error("Fetch payments error:", err);
       setError(err instanceof Error ? err.message : "Xatolik yuz berdi");
     } finally {
       setLoading(false);
@@ -117,20 +121,13 @@ const AdminPaymentsPage = () => {
 
   const handleDelete = async (paymentId: string) => {
     if (!confirm("Bu to'lovni o'chirishni istaysizmi?")) return;
+
     try {
       setActionLoadingId(paymentId);
-      const token = getToken();
-
-      if (!token) {
-        setError("Token topilmadi");
-        return;
-      }
 
       const res = await fetch(`/api/payments/${paymentId}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "include",
       });
 
       const data = await res.json().catch(() => null);
@@ -142,7 +139,12 @@ const AdminPaymentsPage = () => {
       }
 
       setPayments((prev) => prev.filter((p) => p._id !== paymentId));
+
+      if (viewPayment?._id === paymentId) {
+        setViewPayment(null);
+      }
     } catch (err) {
+      console.error("Delete payment error:", err);
       setError(err instanceof Error ? err.message : "Xatolik yuz berdi");
     } finally {
       setActionLoadingId(null);
@@ -155,13 +157,20 @@ const AdminPaymentsPage = () => {
     setIsRefreshing(false);
   };
 
+  // Initial fetch
   useEffect(() => {
     fetchPayments(1, searchTerm, statusFilter, methodFilter);
   }, []);
 
+  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchPayments(1, searchTerm, statusFilter, methodFilter);
+      if (page === 1) {
+        fetchPayments(1, searchTerm, statusFilter, methodFilter);
+      } else {
+        setPage(1);
+        fetchPayments(1, searchTerm, statusFilter, methodFilter);
+      }
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm, statusFilter, methodFilter]);
@@ -173,77 +182,40 @@ const AdminPaymentsPage = () => {
   ) => {
     try {
       setActionLoadingId(paymentId);
-      const token = getToken();
-      if (!token) {
-        setError("Token topilmadi");
-        return;
-      }
 
       const res = await fetch(`/api/payments/verify/${paymentId}`, {
         method: "POST",
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ approved, reason }),
       });
 
       const data = await res.json().catch(() => null);
+
       if (!res.ok || !data?.success) {
         throw new Error(data?.message || "Amalni bajarib bo'lmadi");
       }
 
-      // Statusni yangilash
+      // ✅ Status yangilash
       updateSinglePayment(paymentId, {
         status: approved ? "completed" : "failed",
       });
 
-      // Modalni yopish
       setRejectModal({ isOpen: false, paymentId: null, paymentDetails: null });
       setRejectReason("");
-      setViewPayment(null);
+
+      if (viewPayment?._id === paymentId) {
+        setViewPayment(null);
+      }
     } catch (e) {
+      console.error("Verify payment error:", e);
       setError(e instanceof Error ? e.message : "Xatolik yuz berdi");
     } finally {
       setActionLoadingId(null);
     }
   };
-  // const handleRejectSubmit = async () => {
-  //   if (!rejectModal.paymentId) return;
-  //   try {
-  //     setActionLoadingId(rejectModal.paymentId);
-  //     const token = getToken();
-  //     if (!token) {
-  //       setError("Token topilmadi");
-  //       return;
-  //     }
-
-  //     const res = await fetch(`/api/payments/verify/${rejectModal.paymentId}`, {
-  //       method: "POST",
-  //       headers: {
-  //         Authorization: `Bearer ${token}`,
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         approved: false,
-  //         reason: rejectReason,
-  //       }),
-  //     });
-
-  //     const data = await res.json().catch(() => null);
-  //     if (!res.ok || !data?.success) {
-  //       throw new Error(data?.message || "Rad etishda xatolik yuz berdi");
-  //     }
-
-  //     updateSinglePayment(rejectModal.paymentId, { status: "failed" });
-  //     setRejectModal({ isOpen: false, paymentId: null, paymentDetails: null });
-  //     setRejectReason("");
-  //   } catch (e) {
-  //     setError(e instanceof Error ? e.message : "Xatolik yuz berdi");
-  //   } finally {
-  //     setActionLoadingId(null);
-  //   }
-  // };
 
   const getStatusBadge = (status: string) => {
     const config: Record<string, { bg: string; text: string; label: string }> =
@@ -285,6 +257,7 @@ const AdminPaymentsPage = () => {
       text: "text-gray-700",
       label: status,
     };
+
     return (
       <span
         className={`px-3 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}`}
@@ -297,8 +270,6 @@ const AdminPaymentsPage = () => {
   const canTakeAction = (status: string) => {
     return status === "pending" || status === "processing";
   };
-
-  const filteredPayments = payments;
 
   const totalAmount = payments
     .filter((p) => p.status === "completed")
@@ -341,9 +312,9 @@ const AdminPaymentsPage = () => {
             </div>
             <button
               onClick={() => setError(null)}
-              className="text-red-500 text-sm underline ml-4"
+              className="text-red-500 hover:text-red-700 transition"
             >
-              Yopish
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -425,10 +396,12 @@ const AdminPaymentsPage = () => {
         </div>
 
         {/* Table */}
-        {filteredPayments.length === 0 ? (
+        {payments.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">To'lovlar topilmadi</p>
+            <p className="text-gray-500 text-lg">
+              {loading ? "Yuklanmoqda..." : "To'lovlar topilmadi"}
+            </p>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -460,21 +433,21 @@ const AdminPaymentsPage = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredPayments.map((p) => (
+                  {payments.map((p) => (
                     <tr key={p._id} className="hover:bg-gray-50 transition">
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
                         {p.transactionId}
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">
-                          {p.user.name}
+                          {p.user?.name || "—"}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {p.user.email}
+                          {p.user?.email || "—"}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                        {p.amount.toLocaleString()}
+                        {p.amount.toLocaleString()} so'm
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 capitalize">
                         {p.paymentMethod}
@@ -492,7 +465,7 @@ const AdminPaymentsPage = () => {
                           >
                             <Eye className="w-5 h-5" />
                           </button>
-                          {canTakeAction(p.status) && (
+                          {/* {canTakeAction(p.status) && (
                             <>
                               <button
                                 onClick={() => handleVerify(p._id, true)}
@@ -526,12 +499,14 @@ const AdminPaymentsPage = () => {
                             <span className="text-xs text-gray-400 italic">
                               Amal bajarilgan
                             </span>
-                          )}
+                          )} */}
                           <button
                             onClick={() => handleDelete(p._id)}
+                            disabled={actionLoadingId === p._id}
+                            className="text-red-600 hover:text-red-800 transition disabled:opacity-50"
                             title="O'chirish"
                           >
-                            <Trash className="w-5 h-5 text-red-600 hover:text-red-800 transition" />
+                            <Trash className="w-5 h-5" />
                           </button>
                         </div>
                       </td>
@@ -546,198 +521,158 @@ const AdminPaymentsPage = () => {
 
       {/* Detail Modal */}
       {viewPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <div>
-                <h3 className="text-lg font-semibold">To'lov tafsilotlari</h3>
-                <p className="text-sm text-gray-500">
-                  ID: {viewPayment.transactionId}
-                </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setViewPayment(null)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-900 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold mb-4">To'lov tafsilotlari</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between py-2 border-b">
+                <span className="font-semibold text-gray-700">
+                  Transaction ID:
+                </span>
+                <span className="text-gray-900">
+                  {viewPayment.transactionId}
+                </span>
               </div>
-              <button
-                onClick={() => setViewPayment(null)}
-                className="p-2 hover:bg-gray-100 rounded transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Foydalanuvchi:</span>{" "}
-                  {viewPayment.user.name}
-                </p>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Email:</span>{" "}
-                  {viewPayment.user.email}
-                </p>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Summa:</span>{" "}
-                  {viewPayment.amount.toLocaleString()} UZS
-                </p>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Usul:</span>{" "}
+              <div className="flex justify-between py-2 border-b">
+                <span className="font-semibold text-gray-700">
+                  Foydalanuvchi:
+                </span>
+                <span className="text-gray-900">
+                  {viewPayment.user.name} ({viewPayment.user.email})
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="font-semibold text-gray-700">Summa:</span>
+                <span className="text-gray-900 font-bold">
+                  {viewPayment.amount.toLocaleString()} so'm
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="font-semibold text-gray-700">Usul:</span>
+                <span className="text-gray-900 capitalize">
                   {viewPayment.paymentMethod}
-                </p>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Status:</span>{" "}
-                  {getStatusBadge(viewPayment.status)}
-                </p>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Yaratilgan:</span>{" "}
-                  {new Date(viewPayment.createdAt).toLocaleString("uz-UZ")}
-                </p>
+                </span>
               </div>
-              {viewPayment.providerData && (
-                <div className="space-y-2">
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Jo'natuvchi karta:</span>{" "}
-                    {viewPayment.providerData.senderCardNumber}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Karta egasi:</span>{" "}
-                    {viewPayment.providerData.senderCardHolder}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Qabul qiluvchi karta:</span>{" "}
-                    {viewPayment.providerData.receiverCardNumber}
-                  </p>
-                  {viewPayment.providerData.transactionDate && (
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Tranzaksiya vaqti:</span>{" "}
-                      {new Date(
-                        viewPayment.providerData.transactionDate
-                      ).toLocaleString("uz-UZ")}
-                    </p>
-                  )}
-                  {viewPayment.providerData.transactionId && (
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Tranzaksiya ID:</span>{" "}
-                      {viewPayment.providerData.transactionId}
-                    </p>
-                  )}
-                </div>
-              )}
+              <div className="flex justify-between py-2 border-b">
+                <span className="font-semibold text-gray-700">Status:</span>
+                <div>{getStatusBadge(viewPayment.status)}</div>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="font-semibold text-gray-700">Sana:</span>
+                <span className="text-gray-900">
+                  {new Date(viewPayment.createdAt).toLocaleDateString("uz-UZ", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
               {viewPayment.providerData?.screenshotUrl && (
-                <div className="md:col-span-2">
-                  <p className="text-sm font-medium text-gray-700 mb-2">
-                    To'lov cheki:
+                <div className="pt-4">
+                  <p className="font-semibold text-gray-700 mb-2">
+                    To'lov screenshot:
                   </p>
                   <img
-                    src={
-                      viewPayment.providerData.screenshotUrl ||
-                      "/placeholder.svg"
-                    }
-                    alt="Payment screenshot"
-                    className="w-full rounded-lg border shadow-sm"
+                    src={viewPayment.providerData.screenshotUrl}
+                    alt="To'lov screenshot"
+                    className="w-full border rounded-lg"
                   />
                 </div>
               )}
             </div>
-            <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
-              <button
-                onClick={() => setViewPayment(null)}
-                className="px-4 py-2 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-              >
-                Yopish
-              </button>
-              {canTakeAction(viewPayment.status) && (
-                <>
-                  <button
-                    onClick={async () => {
-                      await handleVerify(viewPayment._id, false);
-                      setViewPayment(null);
-                    }}
-                    className="px-4 py-2 rounded bg-red-100 text-red-700 hover:bg-red-200 transition"
-                  >
-                    Rad etish
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await handleVerify(viewPayment._id, true);
-                      setViewPayment(null);
-                    }}
-                    className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition"
-                  >
-                    Tasdiqlash
-                  </button>
-                </>
-              )}
-            </div>
+
+            {canTakeAction(viewPayment.status) && (
+              <div className="flex gap-3 mt-6 pt-6 border-t">
+                <button
+                  onClick={() => {
+                    handleVerify(viewPayment._id, true);
+                  }}
+                  disabled={actionLoadingId === viewPayment._id}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                >
+                  Tasdiqlash
+                </button>
+                <button
+                  onClick={() => {
+                    setRejectModal({
+                      isOpen: true,
+                      paymentId: viewPayment._id,
+                      paymentDetails: viewPayment,
+                    });
+                  }}
+                  disabled={actionLoadingId === viewPayment._id}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+                >
+                  Rad etish
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
+
       {/* Reject Modal */}
       {rejectModal.isOpen && rejectModal.paymentDetails && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">
-                To‘lovni rad etish
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md p-6 relative">
+            <button
+              onClick={() =>
+                setRejectModal({
+                  isOpen: false,
+                  paymentId: null,
+                  paymentDetails: null,
+                })
+              }
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-900 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold mb-4">To'lovni rad etish</h2>
+            <p className="text-gray-600 mb-3">
+              Rad etish sababi kiriting (ixtiyoriy):
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Sabab..."
+              rows={4}
+              className="w-full border border-gray-300 rounded-lg p-3 mb-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            />
+            <div className="flex justify-end gap-3">
               <button
-                onClick={() =>
+                onClick={() => {
                   setRejectModal({
                     isOpen: false,
                     paymentId: null,
                     paymentDetails: null,
-                  })
-                }
-                className="p-2 hover:bg-gray-100 rounded transition"
+                  });
+                  setRejectReason("");
+                }}
+                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
               >
-                <X className="w-5 h-5" />
+                Bekor qilish
               </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600">
-                Quyidagi to‘lovni rad etmoqchimisiz?
-              </p>
-              <div className="bg-gray-50 border rounded-lg p-3 text-sm">
-                <p>
-                  <span className="font-medium">Foydalanuvchi:</span>{" "}
-                  {rejectModal.paymentDetails.user.name}
-                </p>
-                <p>
-                  <span className="font-medium">Summa:</span>{" "}
-                  {rejectModal.paymentDetails.amount.toLocaleString()} so‘m
-                </p>
-              </div>
-
-              <textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Rad etish sababini yozing..."
-                className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                rows={4}
-              />
-
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() =>
-                    setRejectModal({
-                      isOpen: false,
-                      paymentId: null,
-                      paymentDetails: null,
-                    })
+              <button
+                onClick={() => {
+                  if (rejectModal.paymentId) {
+                    handleVerify(rejectModal.paymentId, false, rejectReason);
                   }
-                  className="px-4 py-2 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-                >
-                  Bekor qilish
-                </button>
-                <button
-                  onClick={() =>
-                    handleVerify(rejectModal.paymentId!, false, rejectReason)
-                  }
-                  disabled={actionLoadingId === rejectModal.paymentId}
-                  className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-50"
-                >
-                  {actionLoadingId === rejectModal.paymentId
-                    ? "Yuborilmoqda..."
-                    : "Rad etish"}
-                </button>
-              </div>
+                }}
+                disabled={actionLoadingId === rejectModal.paymentId}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {actionLoadingId === rejectModal.paymentId
+                  ? "Yuklanmoqda..."
+                  : "Rad etish"}
+              </button>
             </div>
           </div>
         </div>

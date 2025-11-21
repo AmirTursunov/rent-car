@@ -4,6 +4,11 @@ import { ArrowRight, Phone, Mail, MapPin, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSettings } from "../context/SettingContext";
 import { redirect } from "next/navigation";
+import dynamic from "next/dynamic";
+
+const Map = dynamic(() => import("@/components/home/Map"), {
+  ssr: false,
+});
 
 const headerVariants = {
   hidden: {},
@@ -271,6 +276,9 @@ const CTASection = () => {
               24/7 Qo'llab-quvvatlash
             </span>
           </div>
+        </div>
+        <div className="mt-10 w-full rounded-2xl overflow-hidden border border-white/20 shadow-lg">
+          <Map lat={41.311081} lng={69.240562} />
         </div>
       </motion.div>
       <style jsx>{`

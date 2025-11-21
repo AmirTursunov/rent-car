@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { User as UserIcon, Mail, Phone, Loader2 } from "lucide-react";
+import { User as UserIcon, Mail, Phone, Loader2, LogOut } from "lucide-react";
 import { useToast } from "@/components/context/ToastContext";
+import { useAuth } from "@/hooks/useAuth";
 
 interface User {
   id: string;
@@ -16,6 +17,7 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
+  const { logout } = useAuth(false);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -116,68 +118,141 @@ export default function ProfilePage() {
     );
   }
   return (
-    <div className="min-h-screen flex flex-col ">
-      <section className="flex-1 flex items-center justify-center">
-        <div className="w-full max-w-lg bg-white rounded-2xl shadow-md border border-gray-100 p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-gray-100">
-              <UserIcon className="text-gray-600" />
+    <div className="min-h-screen flex flex-col justify-center items-center px-4 pt-24">
+      <div
+        className="
+      w-full max-w-xl
+      rounded-2xl
+      backdrop-blur-xl
+      bg-white/10
+      border border-white/20
+      shadow-[0_8px_32px_rgba(0,0,0,0.25)]
+      p-10
+    "
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center border border-white/30">
+              <UserIcon className="text-white w-7 h-7" />
             </div>
+
             <div>
-              <h1 className="text-xl font-semibold text-gray-800">Profil</h1>
-              <p className="text-sm text-gray-500">Shaxsiy maʼlumotlaringiz</p>
+              <h1 className="text-2xl font-semibold text-white">Profil</h1>
+              <p className="text-white/60 text-sm">Shaxsiy ma’lumotlaringiz</p>
             </div>
           </div>
 
-          <form onSubmit={handleSave} className="space-y-4">
-            <div>
-              <label className="text-sm text-gray-600 mb-1 block">Ism</label>
-              <div className="relative">
-                <UserIcon className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                <input
-                  name="name"
-                  defaultValue={user.name}
-                  className="w-full pl-9 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm text-gray-600 mb-1 block">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                <input
-                  name="email"
-                  defaultValue={user.email}
-                  className="w-full pl-9 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm text-gray-600 mb-1 block">
-                Telefon
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                <input
-                  name="phone"
-                  defaultValue={user.phone}
-                  className="w-full pl-9 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-            </div>
-
-            <button
-              disabled={saving}
-              className="w-full bg-black text-white py-2.5 rounded-lg font-medium hover:bg-gray-800 transition flex items-center justify-center gap-2 disabled:opacity-70"
-            >
-              {saving && <Loader2 className="animate-spin w-4 h-4" />}
-              {saving ? "Saqlanmoqda..." : "Saqlash"}
-            </button>
-          </form>
+          <button
+            onClick={logout}
+            className="
+          w-12 h-12
+          rounded-xl
+          bg-white/10
+          hover:bg-white/20
+          border border-white/20
+          flex items-center justify-center
+          transition
+        "
+          >
+            <LogOut className="w-5 h-5 text-white" />
+          </button>
         </div>
-      </section>
+
+        {/* FORM */}
+        <form onSubmit={handleSave} className="space-y-6">
+          {/* NAME */}
+          <div>
+            <label className="text-sm font-medium text-white mb-1 block">
+              Ism
+            </label>
+            <div className="relative">
+              <UserIcon className="absolute left-3 top-2.5 w-4 h-4 text-white/40" />
+              <input
+                name="name"
+                defaultValue={user.name}
+                className="
+              w-full pl-10
+              bg-white/10
+              text-white
+              border border-white/20
+              rounded-lg px-3 py-2.5 text-sm
+              placeholder-white/40
+              focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400/50
+              outline-none
+            "
+              />
+            </div>
+          </div>
+
+          {/* EMAIL */}
+          <div>
+            <label className="text-sm font-medium text-white mb-1 block">
+              Email
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-2.5 w-4 h-4 text-white/40" />
+              <input
+                name="email"
+                defaultValue={user.email}
+                className="
+              w-full pl-10
+              bg-white/10
+              text-white
+              border border-white/20
+              rounded-lg px-3 py-2.5 text-sm
+              placeholder-white/40
+              focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400/50
+              outline-none
+            "
+              />
+            </div>
+          </div>
+
+          {/* PHONE */}
+          <div>
+            <label className="text-sm font-medium text-white mb-1 block">
+              Telefon
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-2.5 w-4 h-4 text-white/40" />
+              <input
+                name="phone"
+                defaultValue={user.phone}
+                className="
+              w-full pl-10
+              bg-white/10
+              text-white
+              border border-white/20
+              rounded-lg px-3 py-2.5 text-sm
+              placeholder-white/40
+              focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400/50
+              outline-none
+            "
+              />
+            </div>
+          </div>
+
+          {/* SAVE BUTTON */}
+          <button
+            type="submit"
+            disabled={saving}
+            className="
+          w-full
+          bg-yellow-500
+          text-black
+          py-3 rounded-lg font-medium
+          hover:bg-yellow-400
+          transition
+          flex items-center justify-center gap-2
+          disabled:opacity-50
+        "
+          >
+            {saving && <Loader2 className="animate-spin w-5 h-5" />}
+            {saving ? "Saqlanmoqda..." : "Saqlash"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

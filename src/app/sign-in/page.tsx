@@ -2,6 +2,7 @@
 
 import { useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2, Lock, Mail, UserIcon } from "lucide-react";
 
 interface FormData {
   email: string;
@@ -19,7 +20,7 @@ interface AuthResponse {
       phone: string;
       role: string;
     };
-    token: string;
+    // Token yo'q - cookie'da saqlanadi
   };
   error?: string;
 }
@@ -48,6 +49,7 @@ export default function LoginForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
+        // credentials: "include", // 🔒 Cookie yuborish uchun kerak
       });
 
       const data: AuthResponse = await response.json();
@@ -56,15 +58,16 @@ export default function LoginForm() {
         throw new Error(data.error || data.message || "Xatolik yuz berdi");
       }
 
-      // Token va user ma’lumotlarini saqlaymiz
+      // ✅ Faqat user ma'lumotlarini localStorage'ga saqlaymiz (token yo'q!)
       if (data.data) {
-        localStorage.setItem("token", data.data.token);
         localStorage.setItem("user", JSON.stringify(data.data.user));
+
+        // Auth state o'zgarganini bildirish
         if (typeof window !== "undefined") {
           window.dispatchEvent(new Event("auth-changed"));
         }
 
-        // Admin foydalanuvchini /admin sahifasiga yo‘naltiramiz
+        // Yo'naltirish
         if (data.data.user.role === "admin") {
           router.push("/admin");
         } else {
@@ -79,81 +82,100 @@ export default function LoginForm() {
   };
 
   return (
-    <form
-      className="max-w-md mx-auto mt-60 shadow-lg rounded-2xl p-8 space-y-6 bg-white"
-      onSubmit={handleSubmit}
-    >
-      <h2 className="text-2xl font-bold text-center text-gray-800">
-        Tizimga kirish
-      </h2>
-
-      {error && (
-        <div className="rounded-lg p-3 border text-sm bg-red-50 border-red-200 text-red-700">
-          {error}
-        </div>
-      )}
-
-      <div className="space-y-1">
-        <label htmlFor="email" className="text-sm font-medium text-gray-700">
-          Elektron pochta
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          className="block w-full px-4 py-3 border rounded-lg focus:ring-2 focus:outline-none transition border-gray-300 text-gray-900"
-          placeholder="Elektron pochta manzilingiz"
-          value={formData.email}
-          onChange={handleChange}
-        />
-      </div>
-
-      <div className="space-y-1">
-        <label htmlFor="password" className="text-sm font-medium text-gray-700">
-          Parol
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          required
-          className="block w-full px-4 py-3 border rounded-lg focus:ring-2 focus:outline-none transition border-gray-300 text-gray-900"
-          placeholder="Parolingiz"
-          value={formData.password}
-          onChange={handleChange}
-        />
-      </div>
-
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full flex items-center justify-center py-3 px-4 rounded-lg font-semibold transition-colors bg-blue-600 text-white disabled:bg-blue-400"
+    <div className="min-h-[712px] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <form
+        className="w-[450px] mx-auto mt-20 shadow-lg rounded-2xl p-8 space-y-6 bg-white/10 backdrop-blur-xl border border-white/20"
+        onSubmit={handleSubmit}
       >
-        {isLoading && (
-          <svg
-            className="animate-spin h-5 w-5 mr-2 text-white"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            />
-          </svg>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center border border-white/30">
+              <UserIcon className="text-white w-7 h-7" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-semibold text-white">
+                Tizimga kirish
+              </h2>
+              <p className="text-white/60 text-sm">Xush kelibsiz</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="rounded-lg p-3 border text-sm bg-red-50 border-red-200 text-red-700">
+            {error}
+          </div>
         )}
-        {isLoading ? "Yuklanmoqda..." : "Tizimga kirish"}
-      </button>
-    </form>
+
+        {/* Email */}
+        <div className="space-y-1">
+          <label
+            htmlFor="email"
+            className="text-sm font-medium text-white mb-1 block"
+          >
+            Elektron pochta
+          </label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-2.5 w-4 h-4 text-white/40" />
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              className="w-full pl-10 bg-white/10 text-white border border-white/20 rounded-lg px-3 py-2.5 text-sm placeholder-white/40 focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400/50 outline-none"
+              placeholder="Elektron pochta manzilingiz"
+              value={formData.email}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+
+        {/* Password */}
+        <div className="space-y-1">
+          <label
+            htmlFor="password"
+            className="text-sm font-medium text-white mb-1 block"
+          >
+            Parol
+          </label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-2.5 w-4 h-4 text-white/40" />
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              className="w-full pl-10 bg-white/10 text-white border border-white/20 rounded-lg px-3 py-2.5 text-sm placeholder-white/40 focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400/50 outline-none"
+              placeholder="Parolingiz"
+              value={formData.password}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+
+        {/* Submit */}
+        <div className="flex flex-col items-center gap-2">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full flex items-center justify-center py-3 px-4 rounded-lg font-semibold transition-colors bg-yellow-500 text-black hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading && <Loader2 className="animate-spin w-5 h-5 mr-2" />}
+            {isLoading ? "Yuklanmoqda..." : "Tizimga kirish"}
+          </button>
+          <p className="text-sm text-white/40 mt-4">
+            Ro'yxatdan o'tmaganmisiz?{" "}
+            <a
+              href="/sign-up"
+              className="text-yellow-500 hover:underline transition-colors duration-200"
+            >
+              Ro'yxatdan o'ting
+            </a>
+          </p>
+        </div>
+      </form>
+    </div>
   );
 }

@@ -3,34 +3,8 @@ import { connectDB } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import Car from "@/models/Car";
 import "@/models/User";
-import jwt, { type JwtPayload } from "jsonwebtoken";
+import { verifyToken, isAdmin } from "@/lib/auth";
 import nodemailer from "nodemailer";
-
-interface DecodedUser extends JwtPayload {
-  userId: string;
-  role: string;
-  email?: string;
-}
-
-const verifyToken = (request: NextRequest): DecodedUser | null => {
-  try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return null;
-    }
-
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "your-secret-key"
-    ) as DecodedUser;
-
-    return decoded;
-  } catch (error) {
-    console.error("verifyToken error:", error);
-    return null;
-  }
-};
 
 // Email transporter
 const transporter = nodemailer.createTransport({
@@ -180,17 +154,21 @@ const sendAdminNotification = async (booking: any, user: any, car: any) => {
     console.log("Admin notification sent successfully");
   } catch (error) {
     console.error("Failed to send admin notification:", error);
-    // Email yuborilmasa ham booking yaratiladi
   }
 };
 
 // 🟢 POST - Yangi buyurtma yaratish
 export async function POST(request: NextRequest) {
   try {
-    const user = verifyToken(request);
+    // ✅ Cookie'dan token olish va verify qilish (jose bilan - async!)
+    const user = await verifyToken(request);
+
     if (!user) {
       return NextResponse.json(
-        { success: false, message: "Autentifikatsiya xatosi" },
+        {
+          success: false,
+          message: "Autentifikatsiya xatosi. Iltimos, tizimga kiring.",
+        },
         { status: 401 }
       );
     }
@@ -218,6 +196,7 @@ export async function POST(request: NextRequest) {
       notes,
     } = body;
 
+    // ✅ Validatsiya
     if (!carId || !startDate || !endDate || !location) {
       return NextResponse.json(
         { success: false, message: "Barcha majburiy maydonlarni to'ldiring" },
@@ -235,9 +214,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ Mashinani topish
     const car = await Car.findById(carId).select(
       "pricePerDay availableCount totalCount brand carModel year"
     );
+
     if (!car) {
       return NextResponse.json(
         { success: false, message: "Mashina topilmadi" },
@@ -256,6 +237,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ Sanalarni validatsiya qilish
     const start = new Date(startDate);
     const end = new Date(endDate);
     start.setHours(0, 0, 0, 0);
@@ -281,6 +263,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ Narxni hisoblash
     const days = Math.ceil(
       (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -297,6 +280,7 @@ export async function POST(request: NextRequest) {
     const paidAmount = calculatedDepositAmount;
     const remainingAmount = Math.max(0, calculatedTotalPrice - paidAmount);
 
+    // ✅ Booking yaratish
     const booking = await Booking.create({
       user: user.userId,
       car: carId,
@@ -330,6 +314,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // ✅ Populate qilish
     await booking.populate([
       {
         path: "car",
@@ -339,7 +324,7 @@ export async function POST(request: NextRequest) {
       { path: "user", select: "name email role" },
     ]);
 
-    // ✅ Adminga email yuborish (async, booking yaratishni to'xtatmaydi)
+    // ✅ Adminga email yuborish (async, blocking emas)
     sendAdminNotification(
       {
         bookingNumber,
@@ -388,44 +373,56 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
-    const user = verifyToken(request);
+
+    // ✅ Cookie'dan token olish va verify qilish (jose bilan - async!)
+    const user = await verifyToken(request);
 
     if (!user) {
       return NextResponse.json(
-        { success: false, message: "Token yaroqsiz yoki topilmadi" },
+        {
+          success: false,
+          message: "Autentifikatsiya xatosi. Iltimos, tizimga kiring.",
+        },
         { status: 401 }
       );
     }
 
-    // URL params
+    // ✅ URL params
     const { searchParams } = new URL(request.url);
     const carId = searchParams.get("car");
     const status = searchParams.get("status");
 
-    let filter: any =
-      user.email === "amirtursunov2@gmail.com" ? {} : { user: user.userId };
+    // ✅ Filter: Admin bo'lsa barcha bookinglar, user bo'lsa faqat o'zniki
+    let filter: any = isAdmin(user) ? {} : { user: user.userId };
 
     // Car ID bo'yicha filter
     if (carId) {
       filter.car = carId;
     }
+
     // Status filter (active = pending yoki confirmed)
     if (status === "active") {
       filter.status = { $in: ["pending", "confirmed", "approved"] };
     } else if (status) {
       filter.status = status;
     }
+
+    // ✅ Bookinglarni olish
     const bookings = await Booking.find(filter)
       .populate(
         "car",
-        "brand carModel pricePerDay availableCount totalCount bookedCount"
+        "brand carModel pricePerDay availableCount totalCount bookedCount image images year"
       )
       .populate("user", "name email role phone")
       .sort({ createdAt: -1 })
       .limit(100)
       .lean();
 
-    return NextResponse.json({ success: true, data: { bookings } });
+    return NextResponse.json({
+      success: true,
+      data: { bookings },
+      isAdmin: isAdmin(user),
+    });
   } catch (error) {
     console.error("GET bookings error:", error);
     return NextResponse.json(

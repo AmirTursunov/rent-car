@@ -5,10 +5,11 @@ import Car from "@/models/Car";
 import { verifyToken } from "@/lib/auth";
 import { ApiResponse } from "@/types";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-): Promise<NextResponse<ApiResponse>> {
+export async function GET({
+  params,
+}: {
+  params: { id: string };
+}): Promise<NextResponse<ApiResponse>> {
   try {
     // Next.js warning: await params before using its properties
     const { id } = (await params) as { id?: string };

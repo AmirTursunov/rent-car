@@ -50,20 +50,13 @@ export default function AdminSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const getToken = () =>
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
   const fetchSettings = async () => {
     try {
       setLoading(true);
       setError(null);
-      const token = getToken();
-      if (!token) {
-        setError("Token topilmadi");
-        return;
-      }
+
       const res = await fetch("/api/admin/settings", {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
       const json = await res.json();
       if (!res.ok || !json.success)
@@ -81,16 +74,12 @@ export default function AdminSettingsPage() {
       setSaving(true);
       setError(null);
       setSuccess(null);
-      const token = getToken();
-      if (!token) {
-        setError("Token topilmadi");
-        return;
-      }
+
       const res = await fetch("/api/admin/settings", {
         method: "PUT",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ ...data }),
       });

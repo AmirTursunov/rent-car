@@ -60,20 +60,10 @@ const AdminReportsPage = () => {
     endDate: new Date().toISOString().split("T")[0],
   });
 
-  const getToken = () => {
-    return typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  };
-
   const fetchReport = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const token = getToken();
-      if (!token) {
-        setError("Token topilmadi");
-        return;
-      }
 
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
@@ -81,7 +71,7 @@ const AdminReportsPage = () => {
       });
 
       const response = await fetch(`/api/admin/reports?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
 
       if (!response.ok) throw new Error("Ma'lumot yuklab bo'lmadi");
@@ -99,7 +89,6 @@ const AdminReportsPage = () => {
 
   const downloadReport = async (format: "pdf" | "excel") => {
     try {
-      const token = getToken();
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
@@ -107,7 +96,7 @@ const AdminReportsPage = () => {
       });
 
       const response = await fetch(`/api/admin/reports/download?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
 
       if (!response.ok) throw new Error("Yuklab bo'lmadi");

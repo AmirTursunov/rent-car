@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
-// import { verifyToken } from "@/lib/auth";
+import { verifyToken } from "@/lib/auth";
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
@@ -14,15 +14,14 @@ const transporter = nodemailer.createTransport({
 
 export async function POST(request: NextRequest) {
   try {
-    // const user = await verifyToken(request);
+    const user = await verifyToken(request);
 
-    // Faqat admin eslatma yuborishi mumkin
-    // if (!user || user.role !== "admin") {
-    //   return NextResponse.json(
-    //     { success: false, message: "Ruxsat yo'q" },
-    //     { status: 403 }
-    //   );
-    // }
+    if (!user || user.role !== "admin") {
+      return NextResponse.json(
+        { success: false, message: "Ruxsat yo'q" },
+        { status: 403 }
+      );
+    }
 
     await connectDB();
 

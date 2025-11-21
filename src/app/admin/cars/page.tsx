@@ -48,7 +48,6 @@ interface BookingData {
   status: string;
 }
 import { useToast } from "../../../components/context/ToastContext"; // yo‘lni moslashtiring
-import { fa } from "zod/v4/locales";
 const AdminCarsPage: React.FC = () => {
   const [cars, setCars] = useState<CarData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,35 +91,29 @@ const AdminCarsPage: React.FC = () => {
     fetchCars();
   }, []);
 
-  const getToken = () => {
-    return typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  };
-
   const fetchCars = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const token = getToken();
-      if (!token) {
-        setError("Token topilmadi");
-        setLoading(false);
-        return;
-      }
-
       const response = await fetch(`/api/cars?admin=true`, {
-        headers: { Authorization: `Bearer ${token}` },
+        method: "GET",
+        credentials: "include", // 🍪 cookie yuborish uchun muhim
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
 
-      if (!response.ok) throw new Error("Yuklab bo'lmadi");
+      if (!response.ok) throw new Error("Ma'lumotlarni yuklab bo'lmadi");
 
       const data = await response.json();
       if (data.success) {
         setCars(data.data.cars);
       }
+
       setLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Xatolik");
+      setError(err instanceof Error ? err.message : "Xatolik yuz berdi");
       setLoading(false);
     }
   };
@@ -181,11 +174,6 @@ const AdminCarsPage: React.FC = () => {
 
     try {
       setSaving(true);
-      const token = getToken();
-      if (!token) {
-        setError("Token topilmadi");
-        return;
-      }
 
       const url = selectedCar ? `/api/cars/${selectedCar._id}` : "/api/cars";
       const method = selectedCar ? "PUT" : "POST";
@@ -212,8 +200,8 @@ const AdminCarsPage: React.FC = () => {
 
       const response = await fetch(url, {
         method,
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -250,12 +238,9 @@ const AdminCarsPage: React.FC = () => {
     if (!window.confirm("O'chirmoqchimisiz?")) return;
 
     try {
-      const token = getToken();
-      if (!token) return;
-
       const response = await fetch(`/api/cars/${carId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
 
       if (!response.ok) throw new Error("O'chirishda xatolik");
@@ -483,11 +468,10 @@ const AdminCarsPage: React.FC = () => {
                         setLoadingCarBookings(true);
                         setShowBookingsModal(true);
                         try {
-                          const token = getToken();
                           const res = await fetch(
                             `/api/bookings?car=${car._id}`,
                             {
-                              headers: { Authorization: `Bearer ${token}` },
+                              credentials: "include",
                             }
                           );
                           const data = await res.json();

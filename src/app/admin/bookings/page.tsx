@@ -46,27 +46,24 @@ const AdminBookings: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
-  const getToken = useCallback(
-    () =>
-      typeof window !== "undefined" ? localStorage.getItem("token") : null,
-    []
-  );
-
   const fetchBookings = useCallback(async () => {
     try {
       setError(null);
-      const token = getToken();
-      if (!token) {
-        setError("Token topilmadi");
-        setLoading(false);
-        return;
-      }
+      setLoading(true);
 
+      // ✅ Cookie avtomatik yuboriladi, credentials: "include" ishlatamiz
       const response = await fetch("/api/bookings", {
-        headers: { Authorization: `Bearer ${token}` },
+        method: "GET",
+        credentials: "include", // Cookie yuborish uchun
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
 
-      if (!response.ok) throw new Error("Yuklab bo'lmadi");
+      if (!response.ok) {
+        throw new Error("Ma'lumotlarni yuklab bo'lmadi");
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -75,16 +72,16 @@ const AdminBookings: React.FC = () => {
         setError(data.message || "Server xatosi");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Xatolik");
+      setError(err instanceof Error ? err.message : "Xatolik yuz berdi");
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [getToken]);
+  }, []);
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [fetchBookings]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -93,9 +90,6 @@ const AdminBookings: React.FC = () => {
 
   const updateBookingStatus = async (bookingId: string, newStatus: string) => {
     try {
-      const token = getToken();
-      if (!token) return;
-
       // Optimistic update
       setBookings((prev) =>
         prev.map((b) =>
@@ -103,11 +97,12 @@ const AdminBookings: React.FC = () => {
         )
       );
 
+      // ✅ Cookie avtomatik yuboriladi
       const response = await fetch(`/api/bookings/${bookingId}/status`, {
         method: "PUT",
+        credentials: "include", // Cookie yuborish
         headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "lication/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ status: newStatus }),
       });
@@ -117,7 +112,7 @@ const AdminBookings: React.FC = () => {
         throw new Error(err?.message || "Yangilashda xatolik");
       }
 
-      // If update selected booking is open, update it too
+      // Agar modal ochiq bo'lsa, uni ham yangilash
       if (selectedBooking?._id === bookingId) {
         setSelectedBooking((prev) =>
           prev ? { ...prev, status: newStatus as any } : null
@@ -125,7 +120,7 @@ const AdminBookings: React.FC = () => {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik");
-      // Refetch on error
+      // Xatolik bo'lsa qayta yuklash
       fetchBookings();
     }
   };
@@ -134,24 +129,27 @@ const AdminBookings: React.FC = () => {
     if (!confirm("Bu buyurtmani o'chirmoqchimisiz?")) return;
 
     try {
-      const token = getToken();
-      if (!token) return;
-
       const deletedBooking = bookings.find((b) => b._id === bookingId);
+
+      // Optimistic update
       setBookings((prev) => prev.filter((b) => b._id !== bookingId));
       if (selectedBooking?._id === bookingId) {
         setSelectedBooking(null);
       }
 
+      // ✅ Cookie avtomatik yuboriladi
       const response = await fetch(`/api/bookings/${bookingId}`, {
         method: "DELETE",
+        credentials: "include", // Cookie yuborish
         headers: {
-          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
         const err = await response.json().catch(() => null);
+
+        // Xatolik bo'lsa qaytarish
         setBookings((prev) => {
           const updated = [...prev];
           if (deletedBooking) {
@@ -159,6 +157,7 @@ const AdminBookings: React.FC = () => {
           }
           return updated;
         });
+
         throw new Error(err?.message || "O'chirishda xatolik");
       }
     } catch (err) {
@@ -204,10 +203,16 @@ const AdminBookings: React.FC = () => {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
           <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
-          <div>
+          <div className="flex-1">
             <p className="text-red-800 font-medium">Xatolik</p>
             <p className="text-red-600 text-sm">{error}</p>
           </div>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-600 hover:text-red-800"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -230,6 +235,7 @@ const AdminBookings: React.FC = () => {
       </div>
 
       <div className="space-y-6">
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-lg shadow">
             <p className="text-sm text-gray-500">Jami</p>
@@ -254,7 +260,8 @@ const AdminBookings: React.FC = () => {
             </p>
           </div>
         </div>
-        {/* warning */}
+
+        {/* Warning */}
         <div
           className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4"
           role="alert"
@@ -265,6 +272,8 @@ const AdminBookings: React.FC = () => {
             tekshiring!
           </p>
         </div>
+
+        {/* Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -343,17 +352,15 @@ const AdminBookings: React.FC = () => {
                           </>
                         )}
                         {booking.status === "need to be returned" && (
-                          <>
-                            <button
-                              onClick={() =>
-                                updateBookingStatus(booking._id, "completed")
-                              }
-                              className="p-2 text-green-600 hover:bg-green-50 rounded"
-                              title="Tugatish"
-                            >
-                              <CheckCircle className="w-5 h-5" />
-                            </button>
-                          </>
+                          <button
+                            onClick={() =>
+                              updateBookingStatus(booking._id, "completed")
+                            }
+                            className="p-2 text-green-600 hover:bg-green-50 rounded"
+                            title="Tugatish"
+                          >
+                            <CheckCircle className="w-5 h-5" />
+                          </button>
                         )}
                         <button
                           onClick={() => setSelectedBooking(booking)}
@@ -362,8 +369,12 @@ const AdminBookings: React.FC = () => {
                         >
                           <Eye className="w-5 h-5" />
                         </button>
-                        <button onClick={() => deleteBooking(booking._id)}>
-                          <Trash className="w-5 h-5 text-red-600 hover:text-red-800 transition" />
+                        <button
+                          onClick={() => deleteBooking(booking._id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded"
+                          title="O'chirish"
+                        >
+                          <Trash className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
@@ -382,6 +393,7 @@ const AdminBookings: React.FC = () => {
         </div>
       </div>
 
+      {/* Modal */}
       {selectedBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border shadow-lg">
@@ -455,15 +467,6 @@ const AdminBookings: React.FC = () => {
                     {selectedBooking.passport?.number || ""}
                   </p>
                 </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-500">
-                    Telefon
-                  </h4>
-                  <p className="font-medium">
-                    {selectedBooking.user.phone || "—"}
-                  </p>
-                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -534,7 +537,7 @@ const AdminBookings: React.FC = () => {
                           );
                           setSelectedBooking(null);
                         }}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg"
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                       >
                         Tasdiqlash
                       </button>
@@ -546,7 +549,7 @@ const AdminBookings: React.FC = () => {
                           );
                           setSelectedBooking(null);
                         }}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg"
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
                       >
                         Bekor qilish
                       </button>
@@ -554,7 +557,7 @@ const AdminBookings: React.FC = () => {
                   )}
                   <button
                     onClick={() => setSelectedBooking(null)}
-                    className="px-4 py-2 bg-gray-100 rounded-lg"
+                    className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
                   >
                     Yopish
                   </button>

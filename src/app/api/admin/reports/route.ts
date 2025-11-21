@@ -1,26 +1,14 @@
-import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
+// app/api/admin/reports/route.ts
 
-// TODO: change these to your actual paths
-import { connectDB } from "../../../../lib/mongodb";
+import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
+import { connectDB } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import Car from "@/models/Car";
 import User from "@/models/User";
+import { verifyToken } from "@/lib/auth";
 
 export const runtime = "nodejs";
-
-function requireAuth(req: Request) {
-  const auth = req.headers.get("authorization") || "";
-  const [, token] = auth.split(" ");
-  if (!token) throw new Error("Unauthorized");
-  try {
-    const secret = process.env.JWT_SECRET || "";
-    jwt.verify(token, secret);
-  } catch {
-    throw new Error("Unauthorized");
-  }
-}
 
 function parseDateRange(searchParams: URLSearchParams) {
   const startDateStr = searchParams.get("startDate");
@@ -34,16 +22,24 @@ function parseDateRange(searchParams: URLSearchParams) {
   return { start, end };
 }
 
-export async function GET(req: Request) {
+export async function GET(request: NextRequest) {
   try {
-    requireAuth(req);
+    // ✅ Cookie'dan admin tekshirish
+    const admin = await verifyToken(request);
+
+    if (!admin || admin.role !== "admin") {
+      return NextResponse.json(
+        { success: false, message: "Admin huquqi kerak" },
+        { status: 403 }
+      );
+    }
+
     await connectDB();
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
     const { start, end } = parseDateRange(searchParams);
 
-    // Helpers
-    const toObjectId = (id: string) => new mongoose.Types.ObjectId(id);
+    // Completed match
     const completedMatch = {
       status: "completed",
       createdAt: { $gte: start, $lte: end },
@@ -78,6 +74,7 @@ export async function GET(req: Request) {
       },
       { $group: { _id: null, total: { $sum: "$totalPrice" } } },
     ]);
+
     const [lastMonthAgg] = await Booking.aggregate([
       {
         $match: {
@@ -105,13 +102,14 @@ export async function GET(req: Request) {
       { $match: { createdAt: { $gte: start, $lte: end } } },
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
+
     const bookingCount = (status: string) =>
       bookingsByStatus.find((b) => b._id === status)?.count ?? 0;
 
     // Cars totals
     const carsTotal = await Car.countDocuments({});
-    const carsAvailable = await Car.countDocuments({ status: "available" });
-    const carsRented = await Car.countDocuments({ status: "rented" });
+    const carsAvailable = await Car.countDocuments({ available: true });
+    const carsRented = await Car.countDocuments({ available: false });
     const carsMaintenance = await Car.countDocuments({ status: "maintenance" });
 
     // Users totals
@@ -120,8 +118,8 @@ export async function GET(req: Request) {
       createdAt: { $gte: start, $lte: end },
     });
     const usersActive = await User.countDocuments({
-      lastLogin: { $gte: start, $lte: end },
-    }); // adjust field if different
+      isActive: true,
+    });
 
     // Top cars by revenue in range
     const topCarsAgg = await Booking.aggregate([
@@ -143,11 +141,17 @@ export async function GET(req: Request) {
           as: "carDoc",
         },
       },
-      { $unwind: "$carDoc" },
+      { $unwind: { path: "$carDoc", preserveNullAndEmptyArrays: true } },
       {
         $project: {
           _id: 0,
-          car: { $ifNull: ["$carDoc.name", "$carDoc.title"] },
+          car: {
+            $concat: [
+              { $ifNull: ["$carDoc.brand", "N/A"] },
+              " ",
+              { $ifNull: ["$carDoc.carModel", ""] },
+            ],
+          },
           bookings: 1,
           revenue: 1,
         },
@@ -188,7 +192,10 @@ export async function GET(req: Request) {
           total:
             bookingCount("completed") +
             bookingCount("pending") +
-            bookingCount("cancelled"),
+            bookingCount("cancelled") +
+            bookingCount("confirmed") +
+            bookingCount("approved") +
+            bookingCount("active"),
           completed: bookingCount("completed"),
           pending: bookingCount("pending"),
           cancelled: bookingCount("cancelled"),
@@ -209,8 +216,14 @@ export async function GET(req: Request) {
       },
     });
   } catch (err: any) {
-    const msg = err?.message || "Server error";
-    const status = msg === "Unauthorized" ? 401 : 500;
-    return NextResponse.json({ success: false, message: msg }, { status });
+    console.error("GET /api/admin/reports error:", err);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Hisobotni yuklashda xatolik",
+        error: err.message,
+      },
+      { status: 500 }
+    );
   }
 }

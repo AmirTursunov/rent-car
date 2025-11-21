@@ -1,4 +1,3 @@
-// components/home/Navbar.tsx
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -13,7 +12,8 @@ export default function Navbar({ settings }: NavbarGuardProps) {
   useEffect(() => {
     const checkAuth = () => {
       try {
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        const token =
+          typeof window !== "undefined" ? localStorage.getItem("user") : null;
         setIsLoggedIn(!!token);
       } catch (_) {
         setIsLoggedIn(false);
@@ -23,7 +23,7 @@ export default function Navbar({ settings }: NavbarGuardProps) {
     checkAuth();
 
     const onStorage = (e: StorageEvent) => {
-      if (e.key === "token") {
+      if (e.key === "user") {
         checkAuth();
       }
     };
@@ -34,7 +34,10 @@ export default function Navbar({ settings }: NavbarGuardProps) {
     window.addEventListener("auth-changed", onAuthChanged as EventListener);
     return () => {
       window.removeEventListener("storage", onStorage);
-      window.removeEventListener("auth-changed", onAuthChanged as EventListener);
+      window.removeEventListener(
+        "auth-changed",
+        onAuthChanged as EventListener
+      );
     };
   }, []);
 

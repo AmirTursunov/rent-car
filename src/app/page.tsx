@@ -1,21 +1,29 @@
 "use client";
 import React, { useEffect } from "react";
 import HeroSection from "../components/home/HeroSection";
-// import SearchSection from "../components/home/SearchSection";
 import FeaturesSection from "../components/home/FeaturesSection";
 import HowItWorksSection from "../components/home/HowItWorksSection";
-// import PopularCarsSection from "../components/home/PopularCarsSection";
 import CategoriesSection from "../components/home/CategoriesSection";
 import WhyChooseUsSection from "../components/home/WhyChooseUsSection";
 import TestimonialsSection from "../components/home/TestimonialsSection";
-// import PricingSection from "../components/home/PricingSection";
 import CTASection from "../components/home/CTASection";
-import { Scroll } from "lucide-react";
 import ScrollTopButton from "@/components/ScrollTopButton";
+import { redirect } from "next/navigation";
 
 const ModernHomePage = () => {
   const [settings, setSettings] = React.useState({});
   const [isLoading, setIsLoading] = React.useState(true);
+  useEffect(() => {
+    const storedUser =
+      typeof window !== "undefined" ? localStorage.getItem("user") : null;
+    const user = storedUser ? JSON.parse(storedUser) : null;
+
+    // 2️⃣ Role tekshirish
+    if (user?.role === "admin") {
+      redirect("/admin"); // admin bo‘lsa redirect
+      return; // fetch qilmasdan to‘xtaydi
+    }
+  }, []);
   useEffect(() => {
     let isMounted = true;
     (async () => {

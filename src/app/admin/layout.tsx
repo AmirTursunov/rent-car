@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Car,
@@ -13,33 +13,15 @@ import {
   X,
   LogOut,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      const userStr = localStorage.getItem("user");
-
-      if (!token || !userStr) {
-        router.push("/sign-in");
-        return;
-      }
-
-      try {
-        const user = JSON.parse(userStr);
-        if (user.role !== "admin") {
-          router.push("/");
-        }
-      } catch (err) {
-        console.error("User parse error:", err);
-        router.push("/sign-in");
-      }
-    }
-  }, [router]);
+  // ✅ useAuth hook'dan foydalanish (requireAdmin = true)
+  const { user, loading, logout } = useAuth(true);
 
   const menuItems = [
     {
@@ -86,13 +68,17 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     },
   ];
 
-  const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      router.push("/sign-in");
-    }
-  };
+  // ✅ Loading holatida spinner ko'rsatish
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Yuklanmoqda...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex bg-gray-100 min-h-screen">
@@ -135,7 +121,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
         <div className="absolute bottom-0 w-full p-4 border-t border-gray-800">
           <button
-            onClick={handleLogout}
+            onClick={logout}
             className="w-full flex items-center text-gray-400 hover:text-white transition-colors"
           >
             <LogOut className="w-5 h-5" />
@@ -161,8 +147,14 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <p className="text-gray-500 text-sm">Boshqaruv paneli</p>
             </div>
             <div className="flex items-center space-x-4">
+              <div className="text-right mr-3">
+                <p className="text-sm font-medium text-gray-800">
+                  {user?.name || "Admin"}
+                </p>
+                <p className="text-xs text-gray-500">{user?.email}</p>
+              </div>
               <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                A
+                {user?.name?.charAt(0).toUpperCase() || "A"}
               </div>
             </div>
           </div>

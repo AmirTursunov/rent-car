@@ -10,6 +10,7 @@ import {
   Ban,
   CheckCircle,
   Trash2,
+  X,
 } from "lucide-react";
 
 interface User {
@@ -18,48 +19,67 @@ interface User {
   email: string;
   phone?: string;
   role: "user" | "admin";
-  isActive: boolean; // ✅ Asl maydon
-  emailVerified: boolean;
+  isActive: boolean;
+  emailVerified?: boolean;
   createdAt: string;
   lastLogin?: string;
 }
 
+interface Stats {
+  total: number;
+  active: number;
+  blocked: number;
+  admins: number;
+}
+
 const AdminUsersPage = () => {
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState<Stats>({
+    total: 0,
+    active: 0,
+    blocked: 0,
+    admins: 0,
+  });
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-
-  const getToken = () =>
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const token = getToken();
-      if (!token) {
-        setError("Token topilmadi");
-        return;
-      }
+      const params = new URLSearchParams();
+      if (searchTerm) params.append("search", searchTerm);
+      if (roleFilter !== "all") params.append("role", roleFilter);
+      if (statusFilter !== "all") params.append("status", statusFilter);
 
-      const response = await fetch("/api/admin/users", {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await fetch(`/api/admin/users?${params.toString()}`, {
+        credentials: "include", // ✅ Cookie yuborish
       });
 
-      if (!response.ok) throw new Error("Yuklab bo'lmadi");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(
+          errorData?.message || `Server xatosi: ${response.status}`
+        );
+      }
 
       const data = await response.json();
 
       if (data.success) {
         setUsers(data.data || []);
+        if (data.stats) {
+          setStats(data.stats);
+        }
       } else {
-        setError("Ma’lumotlarni olishda xatolik");
+        throw new Error(data.message || "Ma'lumotlarni olishda xatolik");
       }
     } catch (err) {
+      console.error("Fetch users error:", err);
       setError(err instanceof Error ? err.message : "Xatolik");
     } finally {
       setLoading(false);
@@ -68,26 +88,47 @@ const AdminUsersPage = () => {
 
   const updateUserStatus = async (userId: string, isActive: boolean) => {
     try {
-      const token = getToken();
-      if (!token) {
-        setError("Token topilmadi");
-        return;
-      }
+      setActionLoadingId(userId);
 
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: "PATCH",
+        credentials: "include", // ✅ Cookie yuborish
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ isActive }),
       });
 
-      if (!response.ok) throw new Error("Yangilab bo'lmadi");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || "Yangilab bo'lmadi");
+      }
 
-      await fetchUsers();
+      // Optimistic update
+      setUsers((prev) =>
+        prev.map((u) => (u._id === userId ? { ...u, isActive } : u))
+      );
+
+      // Stats yangilash
+      if (isActive) {
+        setStats((prev) => ({
+          ...prev,
+          active: prev.active + 1,
+          blocked: prev.blocked - 1,
+        }));
+      } else {
+        setStats((prev) => ({
+          ...prev,
+          active: prev.active - 1,
+          blocked: prev.blocked + 1,
+        }));
+      }
     } catch (err) {
+      console.error("Update user status error:", err);
       setError(err instanceof Error ? err.message : "Xatolik");
+      await fetchUsers(); // Xato bo'lsa qayta yuklash
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -95,17 +136,37 @@ const AdminUsersPage = () => {
     if (!confirm("Foydalanuvchini o'chirmoqchimisiz?")) return;
 
     try {
-      const token = getToken();
+      setActionLoadingId(userId);
+
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include", // ✅ Cookie yuborish
       });
 
-      if (!response.ok) throw new Error("O'chirib bo'lmadi");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || "O'chirib bo'lmadi");
+      }
 
-      await fetchUsers();
+      // Optimistic delete
+      const deletedUser = users.find((u) => u._id === userId);
+      setUsers((prev) => prev.filter((u) => u._id !== userId));
+
+      // Stats yangilash
+      if (deletedUser) {
+        setStats((prev) => ({
+          total: prev.total - 1,
+          active: deletedUser.isActive ? prev.active - 1 : prev.active,
+          blocked: !deletedUser.isActive ? prev.blocked - 1 : prev.blocked,
+          admins: deletedUser.role === "admin" ? prev.admins - 1 : prev.admins,
+        }));
+      }
     } catch (err) {
+      console.error("Delete user error:", err);
       setError(err instanceof Error ? err.message : "Xatolik");
+      await fetchUsers(); // Xato bo'lsa qayta yuklash
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -113,28 +174,15 @@ const AdminUsersPage = () => {
     fetchUsers();
   }, []);
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.phone && user.phone.includes(searchTerm));
-
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && user.isActive) ||
-      (statusFilter === "blocked" && !user.isActive);
-
-    return matchesSearch && matchesRole && matchesStatus;
-  });
-
-  const stats = {
-    total: users.length,
-    active: users.filter((u) => u.isActive).length,
-    blocked: users.filter((u) => !u.isActive).length,
-    admins: users.filter((u) => u.role === "admin").length,
-  };
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm || roleFilter !== "all" || statusFilter !== "all") {
+        fetchUsers();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm, roleFilter, statusFilter]);
 
   if (loading && users.length === 0) {
     return (
@@ -157,9 +205,10 @@ const AdminUsersPage = () => {
           </div>
           <button
             onClick={fetchUsers}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Yangilash
           </button>
         </div>
@@ -174,9 +223,9 @@ const AdminUsersPage = () => {
             </div>
             <button
               onClick={() => setError(null)}
-              className="text-red-500 text-sm underline ml-4"
+              className="text-red-500 hover:text-red-700 transition"
             >
-              Yopish
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -269,10 +318,12 @@ const AdminUsersPage = () => {
         </div>
 
         {/* Users Table */}
-        {filteredUsers.length === 0 ? (
+        {users.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">Foydalanuvchilar topilmadi</p>
+            <p className="text-gray-500 text-lg">
+              {loading ? "Yuklanmoqda..." : "Foydalanuvchilar topilmadi"}
+            </p>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -301,7 +352,7 @@ const AdminUsersPage = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredUsers.map((user) => (
+                  {users.map((user) => (
                     <tr key={user._id} className="hover:bg-gray-50 transition">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -357,7 +408,8 @@ const AdminUsersPage = () => {
                             onClick={() =>
                               updateUserStatus(user._id, !user.isActive)
                             }
-                            className={`p-2 rounded-lg transition ${
+                            disabled={actionLoadingId === user._id}
+                            className={`p-2 rounded-lg transition disabled:opacity-50 ${
                               user.isActive
                                 ? "text-red-600 hover:bg-red-50"
                                 : "text-green-600 hover:bg-green-50"
@@ -366,7 +418,9 @@ const AdminUsersPage = () => {
                               user.isActive ? "Bloklash" : "Aktivlashtirish"
                             }
                           >
-                            {user.isActive ? (
+                            {actionLoadingId === user._id ? (
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : user.isActive ? (
                               <Ban className="w-4 h-4" />
                             ) : (
                               <CheckCircle className="w-4 h-4" />
@@ -374,7 +428,8 @@ const AdminUsersPage = () => {
                           </button>
                           <button
                             onClick={() => deleteUser(user._id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            disabled={actionLoadingId === user._id}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
                             title="O'chirish"
                           >
                             <Trash2 className="w-4 h-4" />
