@@ -540,7 +540,7 @@ const AdminPaymentsPage = () => {
             </div>
 
             {/* Content */}
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-auto">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto flex-1">
               <div className="space-y-2">
                 <p className="text-sm text-gray-600">
                   <span className="font-medium">Foydalanuvchi:</span>{" "}
