@@ -98,7 +98,7 @@ export default function CarDetailPage() {
 
   return (
     <div className="min-h-screen pt-20 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      <div className="max-w-7xl mx-auto px-6 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
         {/* Back Button */}
         <a
           href="/cars"
@@ -107,10 +107,10 @@ export default function CarDetailPage() {
           ← Orqaga qaytish
         </a>
 
-        <div className="grid md:grid-cols-2 gap-12">
+        <div className="grid md:grid-cols-2 gap-12 ">
           {/* Left - Images */}
           <div>
-            <div className="aspect-[16/10] bg-gray-800 rounded-2xl overflow-hidden border border-yellow-400/30 shadow-[0_0_30px_rgba(251,191,36,0.2)]">
+            <div className="aspect-[16/10] bg-gray-800 rounded-2xl overflow-hidden border border-yellow-400/30 shadow-[0_0_30px_rgba(251,191,36,0.2)] max-w-full mr-4 sm:mr-0">
               <img
                 src={cover}
                 alt={`${car.brand} ${displayModel}`}
@@ -159,10 +159,10 @@ export default function CarDetailPage() {
           </div>
 
           {/* Right - Details */}
-          <div className="space-y-6">
+          <div className="space-y-6 ">
             {/* Header */}
             <div>
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-3 mb-3 ">
                 <span className="px-3 py-1 bg-yellow-400/20 text-yellow-400 rounded-full text-sm font-semibold border border-yellow-400/30">
                   {car.category}
                 </span>
@@ -195,7 +195,7 @@ export default function CarDetailPage() {
             </div>
 
             {/* Specs */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4 mr-4 sm:mr-0">
               <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                 <Users className="w-6 h-6 text-yellow-400 mb-2" />
                 <p className="text-xs text-gray-400">O'rindiqlar</p>
@@ -230,7 +230,7 @@ export default function CarDetailPage() {
             )}
 
             {/* Price & Booking */}
-            <div className="bg-gradient-to-br from-yellow-400/10 to-orange-500/10 rounded-2xl p-6 border border-yellow-400/30">
+            <div className="bg-gradient-to-br from-yellow-400/10 to-orange-500/10 rounded-2xl p-5 mr-4 border border-yellow-400/30">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <p className="text-sm text-gray-400 mb-1">Kunlik narx</p>

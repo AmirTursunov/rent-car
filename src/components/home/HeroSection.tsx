@@ -43,7 +43,7 @@ const HeroSection = () => {
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left Content */}
-          <div className="text-white space-y-6 sm:space-y-8">
+          <div className="text-white space-y-6 sm:space-y-8 mt-4 sm:mt-0">
             <motion.div
               variants={fadeVariant}
               className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 text-xs sm:text-sm"

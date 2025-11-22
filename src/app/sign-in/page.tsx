@@ -84,7 +84,19 @@ export default function LoginForm() {
   return (
     <div className="min-h-[712px] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <form
-        className="w-[450px] mx-auto mt-20 shadow-lg rounded-2xl p-8 space-y-6 bg-white/10 backdrop-blur-xl border border-white/20"
+        className="w-full
+    max-w-sm
+    sm:max-w-md
+    lg:w-[450px]
+    mx-auto
+    mt-10 sm:mt-16 lg:mt-20
+    shadow-lg
+    rounded-2xl
+    p-6 sm:p-8
+    space-y-6
+    bg-white/10
+    backdrop-blur-xl
+    border border-white/20"
         onSubmit={handleSubmit}
       >
         {/* Header */}
