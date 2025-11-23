@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
                 <ul style="margin: 5px 0; padding-left: 20px; color: #374151;">
                   <li>Har bir kechikkan kun uchun <strong style="color: #dc2626;">${penaltyPerDay.toLocaleString()} so'm</strong> jarima</li>
                   <li>Jarima avtomatik hisoblanadi</li>
-                  <li>Depozitdan ushlab qolinadi</li>
+                  <li>Kafolat puli ya'ni zalogdan ushlab qolinadi</li>
                 </ul>
               </div>
 

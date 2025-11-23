@@ -4,6 +4,7 @@ import Booking from "@/models/Booking";
 import Car from "@/models/Car";
 import { verifyToken } from "@/lib/auth";
 import { ApiResponse } from "@/types";
+import { emailService } from "@/lib/email"; // ✅ email service import
 
 interface UpdateStatusRequest {
   status:
@@ -60,7 +61,9 @@ export async function PUT(
     }
 
     // ✅ Bookingni topish
-    const booking = await Booking.findById(id).populate("car");
+    const booking = await Booking.findById(id)
+      .populate("car")
+      .populate("user", "name email");
 
     if (!booking) {
       return NextResponse.json(
@@ -87,19 +90,12 @@ export async function PUT(
           `📊 Hozirgi: available=${car.availableCount}, booked=${car.bookedCount}, total=${car.totalCount}`
         );
 
-        // ✅ COMPLETED - Mashina qaytarildi
         if (newStatus === "completed" && oldStatus !== "completed") {
           car.availableCount = Math.min(car.availableCount + 1, car.totalCount);
           car.bookedCount = Math.max(0, car.bookedCount - 1);
           car.available = car.availableCount > 0;
           await car.save();
-          console.log(
-            `✅ COMPLETED: Mashina qaytarildi → available=${car.availableCount}, booked=${car.bookedCount}`
-          );
-        }
-
-        // ✅ CANCELLED - Booking bekor qilindi, mashina bo'shadi
-        else if (
+        } else if (
           newStatus === "cancelled" &&
           (oldStatus === "pending" || oldStatus === "confirmed")
         ) {
@@ -107,23 +103,11 @@ export async function PUT(
           car.bookedCount = Math.max(0, car.bookedCount - 1);
           car.available = car.availableCount > 0;
           await car.save();
-          console.log(
-            `❌ CANCELLED: Mashina bo'shadi → available=${car.availableCount}, booked=${car.bookedCount}`
-          );
-        }
-
-        // ✅ CONFIRMED - Pending'dan tasdiqlandi (count allaqachon -1 qilingan POST'da)
-        else if (newStatus === "confirmed" && oldStatus === "pending") {
-          console.log(`✓ CONFIRMED: Count o'zgarmaydi (allaqachon band)`);
-        }
-
-        // ✅ NEED TO BE RETURNED - Mashina qaytarilishi kerak (hali qaytarilmagan)
-        else if (String(newStatus) === "need to be returned") {
-          console.log(`⏳ NEED TO BE RETURNED: Kutilmoqda, count o'zgarmaydi`);
-        }
-
-        // ✅ Completed → Need to be returned (xato bo'lsa qaytarish)
-        else if (
+        } else if (newStatus === "confirmed" && oldStatus === "pending") {
+          // count allaqachon band
+        } else if (String(newStatus) === "need to be returned") {
+          // hali qaytarilmagan
+        } else if (
           oldStatus === "completed" &&
           String(newStatus) === "need to be returned"
         ) {
@@ -131,9 +115,6 @@ export async function PUT(
           car.bookedCount = Math.min(car.bookedCount + 1, car.totalCount);
           car.available = car.availableCount > 0;
           await car.save();
-          console.log(
-            `↩️ COMPLETED → NEED TO BE RETURNED: Mashina qayta band → available=${car.availableCount}`
-          );
         }
       }
     }
@@ -151,6 +132,21 @@ export async function PUT(
       .populate("user", "name email");
 
     console.log(`✅ Status yangilandi: ${oldStatus} → ${newStatus}\n`);
+
+    // 📧 Email jo‘natish (confirmed va cancelled)
+    if (newStatus === "confirmed") {
+      await emailService.sendBookingConfirmation(
+        booking.user.email,
+        updatedBooking
+      );
+    } else if (newStatus === "cancelled") {
+      const reason = "Admin tomonidan bekor qilindi";
+      await emailService.sendBookingRejection(
+        booking.user.email,
+        updatedBooking,
+        reason
+      );
+    }
 
     return NextResponse.json({
       success: true,
