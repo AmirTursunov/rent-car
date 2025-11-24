@@ -204,7 +204,6 @@ class EmailService {
             <div class="instructions">
               <h3>📝 Keyingi Qadamlar</h3>
               <ul>
-                <li><strong>Depozitni to'lang:</strong> Buyurtmani tasdiqlash uchun depozit summasi to'lanishi kerak.</li>
                 <li><strong>Hujjatlar:</strong> Pasport nusxangizni va haydovchilik guvohnomasini tayyorlab qo'ying.</li>
                 <li><strong>Vaqtida keling:</strong> Belgilangan sanada ko'rsatilgan manzilga keling.</li>
                 <li><strong>Aloqa:</strong> Savollar bo'lsa, biz bilan bog'laning.</li>
@@ -213,8 +212,10 @@ class EmailService {
 
             <div class="contact-box">
               <p><strong>📞 Aloqa uchun:</strong></p>
-              <p>Telefon: ${bookingData.phoneNumber || "+998 90 123 45 67"}</p>
-              <p>Email: ${process.env.ADMIN_EMAIL || process.env.SMTP_USER}</p>
+              <p>Telefon: ${
+                process.env.ADMIN_PHONE_NUMBER || "+998 90 123 45 67"
+              }</p>
+              <p>Email: ${process.env.ADMIN_EMAIL}</p>
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
