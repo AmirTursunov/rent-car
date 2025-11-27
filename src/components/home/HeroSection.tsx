@@ -2,8 +2,67 @@
 import { Play, Star, CheckCircle, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { redirect } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 const HeroSection = () => {
+  const animationRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (window.innerWidth < 1024) return;
+
+    const dot = document.querySelector<HTMLDivElement>(".cursor-dot");
+    const ring = document.querySelector<HTMLDivElement>(".cursor-ring");
+
+    if (!dot || !ring) return;
+
+    let ringX = 0,
+      ringY = 0;
+    let dotX = 0,
+      dotY = 0;
+    let isVisible = false;
+
+    const moveCursor = (e: MouseEvent) => {
+      dotX = e.clientX;
+      dotY = e.clientY;
+      if (!isVisible) {
+        dot.style.opacity = "1";
+        ring.style.opacity = "1";
+        isVisible = true;
+      }
+    };
+
+    const hideCursor = () => {
+      dot.style.opacity = "0";
+      ring.style.opacity = "0";
+      isVisible = false;
+    };
+
+    const animate = () => {
+      dot.style.left = `${dotX}px`;
+      dot.style.top = `${dotY}px`;
+
+      ringX += (dotX - ringX) * 0.25;
+      ringY += (dotY - ringY) * 0.25;
+
+      ring.style.left = `${ringX}px`;
+      ring.style.top = `${ringY}px`;
+
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    document.addEventListener("mousemove", moveCursor);
+    document.addEventListener("mouseleave", hideCursor);
+    document.addEventListener("mouseenter", moveCursor);
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      document.removeEventListener("mousemove", moveCursor);
+      document.removeEventListener("mouseleave", hideCursor);
+      document.removeEventListener("mouseenter", moveCursor);
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, []);
   const containerVariants = {
     hidden: {},
     show: {
@@ -24,6 +83,8 @@ const HeroSection = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      <div className="cursor-dot" />
+      <div className="cursor-ring" />
       {/* Animated Background */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[url(/bg-rent.jpg)] bg-cover bg-center"></div>

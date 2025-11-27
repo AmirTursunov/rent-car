@@ -54,7 +54,7 @@ const CategoriesSection = () => {
   return (
     <section
       id="category"
-      className="py-24 px-6 bg-transparent text-[#DCFF00] relative overflow-hidden"
+      className="app-gradient-bg py-24 px-6 bg-transparent text-[#DCFF00] relative overflow-hidden"
     >
       {/* Neon Glow Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#202020]/40 to-transparent"></div>

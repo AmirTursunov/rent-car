@@ -24,7 +24,7 @@ export default function Map({ lat, lng }: MapProps) {
   const position: LatLngExpression = [lat, lng];
 
   return (
-    <div className="w-full h-[500px] rounded-lg overflow-hidden">
+    <div className="w-full h-[500px] rounded-lg overflow-hidden z-0">
       <MapContainer
         center={position}
         zoom={15}

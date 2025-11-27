@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          message: "Admin huquqi yo‘q",
+          message: "Admin huquqi yo'q",
           error: "Admin ruxsati kerak",
         },
         { status: 403 }
@@ -24,7 +24,7 @@ export async function GET(
 
     await connectDB();
 
-    // Asosiy statistikalar
+    // ✅ Asosiy statistikalar
     const [totalCars, totalUsers, totalBookings, totalRevenue] =
       await Promise.all([
         Car.countDocuments(),
@@ -35,6 +35,20 @@ export async function GET(
           { $group: { _id: null, total: { $sum: "$totalPrice" } } },
         ]),
       ]);
+
+    // ✅ Bo'sh va band mashinalar sonini hisoblash
+    const carStats = await Car.aggregate([
+      {
+        $group: {
+          _id: null,
+          availableCars: { $sum: "$availableCount" }, // Bo'sh mashinalar
+          bookedCars: { $sum: "$bookedCount" }, // Band mashinalar
+        },
+      },
+    ]);
+
+    const availableCars = carStats[0]?.availableCars || 0;
+    const bookedCars = carStats[0]?.bookedCars || 0;
 
     // Oylik statistikalar (oxirgi 12 oy)
     const monthlyStats = await Booking.aggregate([
@@ -88,7 +102,7 @@ export async function GET(
       {
         $project: {
           brand: "$car.brand",
-          model: "$car.model",
+          model: "$car.carModel",
           bookings: 1,
           totalRevenue: 1,
         },
@@ -98,7 +112,7 @@ export async function GET(
     // So'nggi buyurtmalar
     const recentBookings = await Booking.find()
       .populate("user", "name email")
-      .populate("car", "brand model")
+      .populate("car", "brand carModel")
       .sort({ createdAt: -1 })
       .limit(10);
 
@@ -111,6 +125,8 @@ export async function GET(
           totalUsers,
           totalBookings,
           totalRevenue: totalRevenue[0]?.total || 0,
+          availableCars, // ✅ Bo'sh mashinalar
+          bookedCars, // ✅ Band mashinalar
         },
         monthlyStats,
         popularCars,
@@ -122,7 +138,7 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        message: "Admin huquqi yo‘q",
+        message: "Admin huquqi yo'q",
         error: "Statistikalarni olishda xatolik",
       },
       { status: 500 }

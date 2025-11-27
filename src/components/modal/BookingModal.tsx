@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ManualPaymentModal from "./ManualPaymentModal";
 import {
   X,
@@ -34,7 +34,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [awaitingApproval, setAwaitingApproval] = useState(false);
   const [existingBookingWarning, setExistingBookingWarning] = useState(false);
-
+  const errorRef = useRef<HTMLDivElement | null>(null);
   const [bookingData, setBookingData] = useState({
     startDate: "",
     endDate: "",
@@ -278,7 +278,7 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
         </div>
 
         {/* Progress Steps */}
-        <div className="px-6 py-6 border-b border-yellow-400/20">
+        <div ref={errorRef} className="px-6 py-6 border-b border-yellow-400/20">
           <div className="flex items-center justify-between max-w-2xl mx-auto">
             {[
               { num: 1, label: "Ma'lumotlar" },
@@ -443,12 +443,17 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                   <input
                     type="text"
                     value={bookingData.passportSeries}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      // Faqat harflarni olish (A-Z, a-z)
+                      const lettersOnly = e.target.value
+                        .replace(/[^a-zA-Z]/g, "")
+                        .toUpperCase();
+
                       setBookingData({
                         ...bookingData,
-                        passportSeries: e.target.value.toUpperCase(),
-                      })
-                    }
+                        passportSeries: lettersOnly,
+                      });
+                    }}
                     placeholder="AB"
                     maxLength={2}
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 placeholder-gray-500 focus:border-yellow-400 outline-none uppercase"
@@ -478,19 +483,33 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
                     <Phone className="w-4 h-4 text-yellow-400" />
                     Telefon raqam
                   </label>
-                  <input
-                    type="tel"
-                    value={bookingData.phoneNumber}
-                    onChange={(e) =>
-                      setBookingData({
-                        ...bookingData,
-                        phoneNumber: e.target.value,
-                      })
-                    }
-                    placeholder="+998 90 123 45 67"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 placeholder-gray-500 focus:border-yellow-400 outline-none"
-                  />
-                </div>{" "}
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                      +998
+                    </span>
+                    <input
+                      type="tel"
+                      value={bookingData.phoneNumber.replace(/^998/, "")} // +998 ni inputda ko‘rsatmaymiz
+                      onChange={(e) => {
+                        // faqat raqam qabul qilamiz
+                        const onlyNumbers = e.target.value.replace(
+                          /[^0-9]/g,
+                          ""
+                        );
+                        if (onlyNumbers.length <= 9) {
+                          // maksimal 9 ta raqam
+                          setBookingData({
+                            ...bookingData,
+                            phoneNumber: "998" + onlyNumbers, // saqlashda +998 bilan
+                          });
+                        }
+                      }}
+                      placeholder="90 123 45 67"
+                      className="w-full pl-16 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-200 placeholder-gray-500 focus:border-yellow-400 outline-none"
+                    />
+                  </div>
+                </div>
+                {""}
                 <div className="md:col-span-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
                     <FileText className="w-4 h-4 text-yellow-400" />
@@ -550,15 +569,28 @@ const BookingModal = ({ isOpen, onClose, car }: BookingModalProps) => {
 
               <button
                 onClick={() => {
+                  const phoneWithoutCode = bookingData.phoneNumber.replace(
+                    /^998/,
+                    ""
+                  );
                   if (
                     !bookingData.startDate ||
                     !bookingData.endDate ||
                     !bookingData.location ||
                     !bookingData.passportSeries ||
+                    bookingData.passportSeries.length !== 2 ||
                     !bookingData.passportNumber ||
-                    !bookingData.phoneNumber
+                    bookingData.passportNumber.length !== 7 ||
+                    !bookingData.phoneNumber ||
+                    phoneWithoutCode.length !== 9
                   ) {
                     setError("Barcha majburiy maydonlarni to'ldiring");
+                    if (errorRef.current) {
+                      errorRef.current.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }
                     return;
                   }
                   if (days <= 0) {

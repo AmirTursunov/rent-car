@@ -4,7 +4,7 @@ import { NavbarGuardProps } from "./NavbarGuard";
 
 export default function Footer({ settings }: NavbarGuardProps) {
   return (
-    <footer className="relative  border-t border-white/10 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white">
+    <footer className="relative app-gradient-bg-2 border-t border-white/10 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white">
       {/* Gradient Overlay (light shimmer) */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
 

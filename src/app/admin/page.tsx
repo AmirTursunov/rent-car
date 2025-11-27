@@ -6,8 +6,8 @@ import {
   Calendar,
   DollarSign,
   TrendingUp,
-  Clock,
   CheckCircle,
+  XCircle,
   AlertCircle,
   BarChart3,
 } from "lucide-react";
@@ -17,14 +17,14 @@ interface DashboardStats {
   totalUsers: number;
   totalBookings: number;
   totalRevenue: number;
-  activeBookings: number;
-  availableCars: number;
+  availableCars: number; // Bo'sh mashinalar
+  bookedCars: number; // Band mashinalar
 }
 
 interface RecentBooking {
   _id: string;
   user: { name: string; email: string };
-  car: { brand: string; model: string };
+  car: { brand: string; carModel: string };
   startDate: string;
   endDate: string;
   totalPrice: number;
@@ -39,8 +39,8 @@ const AdminDashboardPage: React.FC = () => {
     totalUsers: 0,
     totalBookings: 0,
     totalRevenue: 0,
-    activeBookings: 0,
     availableCars: 0,
+    bookedCars: 0,
   });
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
 
@@ -55,7 +55,7 @@ const AdminDashboardPage: React.FC = () => {
 
       const response = await fetch("/api/dashboard/stats", {
         method: "GET",
-        credentials: "include", // 🍪 cookie yuborish uchun muhim
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -66,6 +66,7 @@ const AdminDashboardPage: React.FC = () => {
       }
 
       const data = await response.json();
+      console.log("Dashboard data:", data);
 
       if (data.success && data.data) {
         setStats({
@@ -73,13 +74,8 @@ const AdminDashboardPage: React.FC = () => {
           totalUsers: data.data.overview?.totalUsers || 0,
           totalBookings: data.data.overview?.totalBookings || 0,
           totalRevenue: data.data.overview?.totalRevenue || 0,
-          activeBookings:
-            data.data.recentBookings?.filter(
-              (b: any) => b.status === "confirmed" || b.status === "pending"
-            ).length || 0,
-          availableCars:
-            data.data.cars?.filter((car: any) => car.available === true)
-              .length || 0,
+          availableCars: data.data.overview?.availableCars || 0,
+          bookedCars: data.data.overview?.bookedCars || 0,
         });
 
         if (data.data.recentBookings) {
@@ -147,7 +143,7 @@ const AdminDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Stats Grid */}
+      {/* 📊 Asosiy Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           icon={<Car className="w-6 h-6 text-white" />}
@@ -175,40 +171,122 @@ const AdminDashboardPage: React.FC = () => {
         />
       </div>
 
-      {/* Secondary Stats */}
+      {/* ✅ BO'SH VA BAND MASHINALAR - ASOSIY QISM */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">
-              Faol Buyurtmalar
+              Bo'sh Mashinalar
             </h3>
-            <Clock className="w-5 h-5 text-blue-500" />
+            <CheckCircle className="w-8 h-8 text-green-500" />
           </div>
-          <div className="flex items-center">
-            <span className="text-3xl font-bold text-blue-600">
-              {stats.activeBookings}
+          <div className="flex items-baseline">
+            <span className="text-4xl font-bold text-green-600">
+              {stats.availableCars}
             </span>
-            <span className="text-gray-500 ml-2">ta buyurtma jarayonda</span>
+            <span className="text-gray-500 ml-3 text-lg">ta mavjud</span>
+          </div>
+          <div className="mt-4 bg-green-50 rounded-lg p-3">
+            <p className="text-sm text-green-700">
+              ✅ Hozir ijaraga berishingiz mumkin
+            </p>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">
-              Mavjud Mashinalar
+              Band Mashinalar
             </h3>
-            <CheckCircle className="w-5 h-5 text-green-500" />
+            <XCircle className="w-8 h-8 text-red-500" />
           </div>
-          <div className="flex items-center">
-            <span className="text-3xl font-bold text-green-600">
-              {stats.availableCars}
+          <div className="flex items-baseline">
+            <span className="text-4xl font-bold text-red-600">
+              {stats.bookedCars}
             </span>
-            <span className="text-gray-500 ml-2">ta mashina bo'sh</span>
+            <span className="text-gray-500 ml-3 text-lg">ta band</span>
+          </div>
+          <div className="mt-4 bg-red-50 rounded-lg p-3">
+            <p className="text-sm text-red-700">
+              🚗 Hozirda mijozlar foydalanmoqda
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Recent Bookings */}
+      {/* 📈 Band/Bo'sh Foiz Ko'rsatkichi */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+          Mashina Holati
+        </h3>
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">
+                Bo'sh mashinalar
+              </span>
+              <span className="text-sm font-semibold text-green-600">
+                {stats.availableCars + stats.bookedCars > 0
+                  ? (
+                      (stats.availableCars /
+                        (stats.availableCars + stats.bookedCars)) *
+                      100
+                    ).toFixed(1)
+                  : 0}
+                %
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className="bg-green-500 h-3 rounded-full transition-all duration-500"
+                style={{
+                  width: `${
+                    stats.availableCars + stats.bookedCars > 0
+                      ? (stats.availableCars /
+                          (stats.availableCars + stats.bookedCars)) *
+                        100
+                      : 0
+                  }%`,
+                }}
+              ></div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">
+                Band mashinalar
+              </span>
+              <span className="text-sm font-semibold text-red-600">
+                {stats.availableCars + stats.bookedCars > 0
+                  ? (
+                      (stats.bookedCars /
+                        (stats.availableCars + stats.bookedCars)) *
+                      100
+                    ).toFixed(1)
+                  : 0}
+                %
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className="bg-red-500 h-3 rounded-full transition-all duration-500"
+                style={{
+                  width: `${
+                    stats.availableCars + stats.bookedCars > 0
+                      ? (stats.bookedCars /
+                          (stats.availableCars + stats.bookedCars)) *
+                        100
+                      : 0
+                  }%`,
+                }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 📋 So'nggi Buyurtmalar */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800">
@@ -265,7 +343,7 @@ const AdminDashboardPage: React.FC = () => {
                     </td>
                     <td className="py-3 px-4">
                       <p className="font-medium text-gray-800">
-                        {booking.car.brand} {booking.car.model}
+                        {booking.car.brand} {booking.car.carModel}
                       </p>
                     </td>
                     <td className="py-3 px-4">
@@ -310,7 +388,7 @@ const AdminDashboardPage: React.FC = () => {
         )}
       </div>
 
-      {/* Quick Actions */}
+      {/* ⚡ Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <a
           href="/admin/cars"

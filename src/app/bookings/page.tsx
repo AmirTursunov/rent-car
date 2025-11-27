@@ -200,7 +200,7 @@ export default function MyBookingsPage() {
             <img
               src={b.car?.images?.[0] || "/window.svg"}
               alt=""
-              className="w-full h-48 object-cover border-b border-yellow-400/20"
+              className="w-full h-60 object-cover border-b border-yellow-400/20"
             />
             <div className="p-5 space-y-3">
               <div className="flex items-center justify-between">

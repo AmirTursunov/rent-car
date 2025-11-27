@@ -91,7 +91,7 @@ export default function MenuOverlay({
 
   return (
     <motion.div
-      className="fixed inset-0 w-screen h-screen app-gradient-bg z-[100] flex flex-col xl:flex-row items-stretch overflow-hidden"
+      className="fixed inset-0 w-screen h-screen app-gradient-bg z-[200] flex flex-col xl:flex-row items-stretch overflow-hidden"
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 40 }}
@@ -141,7 +141,7 @@ export default function MenuOverlay({
       </div>
 
       {/* O‘ng qism (menyu) */}
-      <div className="relative flex-1 flex flex-col justify-start items-end py-10 md:py-16 xl:py-20 px-6 md:px-12 xl:px-24 overflow-y-auto before:content-[''] before:absolute before:left-0 before:top-0 before:h-full before:w-10 before:bg-gradient-to-l before:from-black/40 before:via-transparent before:to-transparent before:z-30">
+      <div className="app-gradient-bg-2 relative flex-1 flex flex-col justify-start items-end py-10 md:py-16 xl:py-20 px-6 md:px-12 xl:px-24 overflow-y-auto before:content-[''] before:absolute before:left-0 before:top-0 before:h-full before:w-10 before:bg-gradient-to-l before:from-black/40 before:via-transparent before:to-transparent before:z-30">
         {/* Yopish tugmasi */}
         <button
           className="absolute top-6 right-6 md:top-8 md:right-10 text-white hover:text-yellow-400 transition z-40"

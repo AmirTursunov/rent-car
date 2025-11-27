@@ -35,7 +35,7 @@ export default async function RootLayout({
       >
         <NavbarGuard settings={settings} />
         <AppProviders>
-          <main className="app-gradient-bg">{children}</main>
+          <main className="app-gradient-bg-2">{children}</main>
         </AppProviders>
         <FooterGuard settings={settings} />
       </body>

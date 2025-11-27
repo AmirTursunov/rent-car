@@ -31,51 +31,69 @@ const FeaturesSection = () => {
     {
       icon: Shield,
       title: "100% Xavfsizlik",
-      description: "Barcha avtomobillar to'liq sug'urtalangan va texnik jihatdan mukammal holatda.",
+      description:
+        "Barcha avtomobillar to'liq sug'urtalangan va texnik jihatdan mukammal holatda.",
     },
     {
       icon: Clock,
       title: "24/7 Qo'llab-quvvatlash",
-      description: "Har qanday vaqtda yordam va maslahat olishingiz mumkin, doim aloqadamiz.",
+      description:
+        "Har qanday vaqtda yordam va maslahat olishingiz mumkin, doim aloqadamiz.",
     },
     {
       icon: Award,
       title: "Premium Sifat",
-      description: "Faqat eng yaxshi va yangi model avtomobillar, professional texnik xizmat.",
+      description:
+        "Faqat eng yaxshi va yangi model avtomobillar, professional texnik xizmat.",
     },
     {
       icon: DollarSign,
       title: "Qulay Narxlar",
-      description: "Raqobatbardosh narxlar va maxsus chegirmalar, eng yaxshi takliflar.",
+      description:
+        "Raqobatbardosh narxlar va maxsus chegirmalar, eng yaxshi takliflar.",
     },
     {
       icon: MapPin,
       title: "Istalgan Joyda",
-      description: "Shaharning istalgan nuqtasida tez va qulay yetkazib berish xizmati.",
+      description:
+        "Shaharning istalgan nuqtasida tez va qulay yetkazib berish xizmati.",
     },
     {
       icon: Headphones,
       title: "Professional Xizmat",
-      description: "Tajribali va do'stona xizmat ko'rsatuvchi jamoa sizga yordam beradi.",
+      description:
+        "Tajribali va do'stona xizmat ko'rsatuvchi jamoa sizga yordam beradi.",
     },
   ];
 
   return (
-    <section className="py-24 px-6 bg-transparent text-white relative overflow-hidden">
+    <section className="app-gradient-bg py-24 px-6 bg-transparent text-white relative overflow-hidden">
       {/* Yorug‘lik effektlari */}
       <div className="absolute top-20 -left-20 w-96 h-96 bg-[#DCFF00]/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-20 -right-20 w-96 h-96 bg-[#FFA400]/10 rounded-full blur-3xl"></div>
 
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Bo‘lim sarlavhasi */}
-        <motion.div className="text-center mb-16" variants={headerVariants} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.5 }}>
-          <motion.div variants={fadeUp} className="inline-block px-4 py-2 bg-[#202020] text-[#DCFF00] rounded-full font-semibold text-sm mb-4 border border-[#DCFF00]/30">
+        <motion.div
+          className="text-center mb-16"
+          variants={headerVariants}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.5 }}
+        >
+          <motion.div
+            variants={fadeUp}
+            className="inline-block px-4 py-2 bg-[#202020] text-[#DCFF00] rounded-full font-semibold text-sm mb-4 border border-[#DCFF00]/30"
+          >
             ⚡ Nima uchun bizni tanlashadi?
           </motion.div>
           <motion.h2 variants={fadeUp} className="text-5xl font-bold mb-4">
             Bizning <span className="text-[#FFA400]">Afzalliklarimiz</span>
           </motion.h2>
-          <motion.p variants={fadeUp} className="text-lg text-gray-400 max-w-2xl mx-auto">
+          <motion.p
+            variants={fadeUp}
+            className="text-lg text-gray-400 max-w-2xl mx-auto"
+          >
             Mijozlarimizga eng yaxshi tajriba va xizmatni taqdim etamiz
           </motion.p>
         </motion.div>

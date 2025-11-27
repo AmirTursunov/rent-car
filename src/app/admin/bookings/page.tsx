@@ -171,6 +171,7 @@ const AdminBookings: React.FC = () => {
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       pending: "bg-yellow-100 text-yellow-700",
+      "need to be returned": "bg-yellow-100 text-yellow-700",
       confirmed: "bg-blue-100 text-blue-700",
       approved: "bg-blue-100 text-blue-700",
       completed: "bg-green-100 text-green-700",
@@ -178,6 +179,7 @@ const AdminBookings: React.FC = () => {
     };
     const labels: Record<string, string> = {
       pending: "Kutilmoqda",
+      "need to be returned": "Qaytarilishi kerak",
       confirmed: "Tasdiqlangan",
       approved: "Tasdiqlangan",
       completed: "Yakunlangan",
