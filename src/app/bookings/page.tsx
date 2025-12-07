@@ -3,6 +3,8 @@ import { useEffect, useState, useCallback } from "react";
 import useSWR from "swr";
 import { formatPrice } from "@/lib/utils";
 import { MyBookingsSkeleton } from "../../components/skeletons/my-booking-skeleton";
+import LoginForm from "../sign-in/page";
+import { redirect } from "next/navigation";
 
 type BookingStatus =
   | "pending"
@@ -172,17 +174,7 @@ export default function MyBookingsPage() {
   }
 
   if (error) {
-    return (
-      <div className="text-center py-20">
-        <p className="text-red-600 text-lg">{error.message}</p>
-        <a
-          href="/sign-in"
-          className="inline-block mt-6 bg-gradient-to-r from-emerald-400 to-green-500 text-white px-5 py-2 rounded-lg hover:opacity-90 transition"
-        >
-          Kirish
-        </a>
-      </div>
-    );
+    redirect("/sign-in");
   }
 
   return (
