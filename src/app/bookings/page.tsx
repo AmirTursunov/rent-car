@@ -3,7 +3,6 @@ import { useEffect, useState, useCallback } from "react";
 import useSWR from "swr";
 import { formatPrice } from "@/lib/utils";
 import { MyBookingsSkeleton } from "../../components/skeletons/my-booking-skeleton";
-import LoginForm from "../sign-in/page";
 import { redirect } from "next/navigation";
 
 type BookingStatus =
