@@ -1,7 +1,6 @@
 // app/api/admin/reports/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import Car from "@/models/Car";
@@ -19,6 +18,7 @@ function parseDateRange(searchParams: URLSearchParams) {
     : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const end = endDateStr ? new Date(endDateStr + "T23:59:59.999Z") : new Date();
 
+  console.log("📅 Date range:", { start, end });
   return { start, end };
 }
 
@@ -39,19 +39,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const { start, end } = parseDateRange(searchParams);
 
-    // Completed match
+    // ✅ 1. Revenue hisoblash (faqat completed)
     const completedMatch = {
       status: "completed",
       createdAt: { $gte: start, $lte: end },
     };
 
-    // Revenue total in range
     const [revenueAgg] = await Booking.aggregate([
       { $match: completedMatch },
       { $group: { _id: null, total: { $sum: "$totalPrice" } } },
     ]);
 
-    // This month vs last month revenue
+    console.log("💰 Revenue aggregate:", revenueAgg);
+
+    // ✅ 2. This month vs last month revenue
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -97,31 +98,74 @@ export async function GET(request: NextRequest) {
             ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
           );
 
-    // Booking counts by status in range
-    const bookingsByStatus = await Booking.aggregate([
-      { $match: { createdAt: { $gte: start, $lte: end } } },
-      { $group: { _id: "$status", count: { $sum: 1 } } },
+    console.log("📊 Revenue stats:", {
+      total: revenueTotal,
+      thisMonth: thisMonthRevenue,
+      lastMonth: lastMonthRevenue,
+      growth,
+    });
+
+    // ✅ 3. Booking counts by status
+    const dateRangeMatch = { createdAt: { $gte: start, $lte: end } };
+
+    const [
+      totalBookings,
+      completedBookings,
+      pendingBookings,
+      cancelledBookings,
+      confirmedBookings,
+    ] = await Promise.all([
+      Booking.countDocuments(dateRangeMatch),
+      Booking.countDocuments({ ...dateRangeMatch, status: "completed" }),
+      Booking.countDocuments({ ...dateRangeMatch, status: "pending" }),
+      Booking.countDocuments({ ...dateRangeMatch, status: "cancelled" }),
+      Booking.countDocuments({ ...dateRangeMatch, status: "confirmed" }),
     ]);
 
-    const bookingCount = (status: string) =>
-      bookingsByStatus.find((b) => b._id === status)?.count ?? 0;
-
-    // Cars totals
-    const carsTotal = await Car.countDocuments({});
-    const carsAvailable = await Car.countDocuments({ available: true });
-    const carsRented = await Car.countDocuments({ available: false });
-    const carsMaintenance = await Car.countDocuments({ status: "maintenance" });
-
-    // Users totals
-    const usersTotal = await User.countDocuments({});
-    const usersNew = await User.countDocuments({
-      createdAt: { $gte: start, $lte: end },
-    });
-    const usersActive = await User.countDocuments({
-      isActive: true,
+    console.log("📋 Bookings stats:", {
+      total: totalBookings,
+      completed: completedBookings,
+      pending: pendingBookings,
+      cancelled: cancelledBookings,
+      confirmed: confirmedBookings,
     });
 
-    // Top cars by revenue in range
+    // ✅ 4. Cars statistics
+    const carStats = await Car.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          totalCount: { $sum: "$totalCount" },
+          available: { $sum: "$availableCount" },
+          rented: { $sum: "$bookedCount" },
+        },
+      },
+    ]);
+
+    const cars = carStats[0] || {
+      total: 0,
+      totalCount: 0,
+      available: 0,
+      rented: 0,
+    };
+
+    console.log("🚗 Cars stats:", cars);
+
+    // ✅ 5. Users statistics
+    const [usersTotal, usersNew, usersActive] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ createdAt: { $gte: start, $lte: end } }),
+      User.countDocuments({ isActive: true }),
+    ]);
+
+    console.log("👥 Users stats:", {
+      total: usersTotal,
+      new: usersNew,
+      active: usersActive,
+    });
+
+    // ✅ 6. Top cars by revenue
     const topCarsAgg = await Booking.aggregate([
       { $match: completedMatch },
       {
@@ -158,7 +202,9 @@ export async function GET(request: NextRequest) {
       },
     ]);
 
-    // Monthly revenue within range
+    console.log("🏆 Top cars:", topCarsAgg);
+
+    // ✅ 7. Monthly revenue
     const monthlyRevenueAgg = await Booking.aggregate([
       { $match: completedMatch },
       {
@@ -179,7 +225,9 @@ export async function GET(request: NextRequest) {
       },
     ]);
 
-    return NextResponse.json({
+    console.log("📈 Monthly revenue:", monthlyRevenueAgg);
+
+    const responseData = {
       success: true,
       data: {
         revenue: {
@@ -189,22 +237,18 @@ export async function GET(request: NextRequest) {
           growth,
         },
         bookings: {
-          total:
-            bookingCount("completed") +
-            bookingCount("pending") +
-            bookingCount("cancelled") +
-            bookingCount("confirmed") +
-            bookingCount("approved") +
-            bookingCount("active"),
-          completed: bookingCount("completed"),
-          pending: bookingCount("pending"),
-          cancelled: bookingCount("cancelled"),
+          total: totalBookings,
+          completed: completedBookings,
+          pending: pendingBookings,
+          cancelled: cancelledBookings,
+          confirmed: confirmedBookings,
         },
         cars: {
-          total: carsTotal,
-          available: carsAvailable,
-          rented: carsRented,
-          maintenance: carsMaintenance,
+          total: cars.total,
+          totalCount: cars.totalCount,
+          available: cars.available,
+          rented: cars.rented,
+          maintenance: 0, // Agar maintenance status bo'lsa qo'shish kerak
         },
         users: {
           total: usersTotal,
@@ -214,9 +258,13 @@ export async function GET(request: NextRequest) {
         topCars: topCarsAgg,
         monthlyRevenue: monthlyRevenueAgg,
       },
-    });
+    };
+
+    console.log("✅ Final response:", responseData);
+
+    return NextResponse.json(responseData);
   } catch (err: any) {
-    console.error("GET /api/admin/reports error:", err);
+    console.error("❌ GET /api/admin/reports error:", err);
     return NextResponse.json(
       {
         success: false,

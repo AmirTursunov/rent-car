@@ -4,12 +4,14 @@ import Payment from "@/models/Payment";
 import { verifyToken } from "@/lib/auth";
 
 interface RouteContext {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-// GET - Single Payment
+// ============================
+// 📌 GET - Single Payment
+// ============================
 export async function GET(
   request: NextRequest,
   context: RouteContext
@@ -25,7 +27,7 @@ export async function GET(
       );
     }
 
-    const { id } = context.params;
+    const { id } = await context.params; // 🔥 FIX
 
     const payment = await Payment.findById(id)
       .populate("user", "name email phone")
@@ -38,7 +40,7 @@ export async function GET(
       );
     }
 
-    // User faqat o'zining to'lovini ko'ra oladi
+    // Foydalanuvchi faqat o'zining to'lovini ko'ra oladi
     if (user.role !== "admin" && payment.user._id.toString() !== user.userId) {
       return NextResponse.json(
         { success: false, message: "Ruxsat yo'q" },
@@ -63,7 +65,9 @@ export async function GET(
   }
 }
 
-// PUT - Update Payment
+// ============================
+// 📌 PUT - Update Payment
+// ============================
 export async function PUT(
   request: NextRequest,
   context: RouteContext
@@ -87,7 +91,7 @@ export async function PUT(
       );
     }
 
-    const { id } = context.params;
+    const { id } = await context.params; // 🔥 FIX
     const body = await request.json();
 
     const payment = await Payment.findByIdAndUpdate(id, body, {
@@ -120,7 +124,9 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete Payment
+// ============================
+// 📌 DELETE - Delete Payment
+// ============================
 export async function DELETE(
   request: NextRequest,
   context: RouteContext
@@ -144,7 +150,7 @@ export async function DELETE(
       );
     }
 
-    const { id } = context.params;
+    const { id } = await context.params; // 🔥 FIX
 
     const payment = await Payment.findByIdAndDelete(id);
 
