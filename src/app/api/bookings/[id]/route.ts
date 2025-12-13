@@ -8,10 +8,10 @@ import { ApiResponse } from "@/types";
 // 🔹 GET /api/bookings/[id]
 export async function GET(
   _request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // async params
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = context.params;
+    const { id } = await context.params; // await qo'shildi
     await connectDB();
 
     const booking = await Booking.findById(id)
@@ -53,7 +53,7 @@ export async function GET(
 // 🔹 PUT /api/bookings/[id]
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // async params
 ): Promise<NextResponse<ApiResponse>> {
   try {
     const user = await verifyToken(request);
@@ -68,11 +68,10 @@ export async function PUT(
       );
     }
 
-    const { id } = context.params;
+    const { id } = await context.params; // await qo'shildi
     await connectDB();
     const updateData = await request.json();
 
-    // 🔹 Bookingni topish
     const booking = await Booking.findById(id).populate("car");
     if (!booking) {
       return NextResponse.json(
@@ -85,7 +84,6 @@ export async function PUT(
       );
     }
 
-    // 🔹 Faqat admin yoki shu user o'zgartiradi
     if (user.role !== "admin" && booking.user.toString() !== user.userId) {
       return NextResponse.json(
         {
@@ -101,7 +99,6 @@ export async function PUT(
     const newStatus = updateData.status;
     const carId = booking.car._id;
 
-    // ✅ Status o'zgarganda mashina countlarini boshqarish
     if (oldStatus !== newStatus && carId) {
       const car = await Car.findById(carId);
 
@@ -111,19 +108,12 @@ export async function PUT(
           `📊 Eski: available=${car.availableCount}, booked=${car.bookedCount}`
         );
 
-        // ✅ COMPLETED - Mashina qaytarildi
         if (newStatus === "completed" && oldStatus !== "completed") {
           car.availableCount = Math.min(car.availableCount + 1, car.totalCount);
           car.bookedCount = Math.max(0, car.bookedCount - 1);
           car.available = car.availableCount > 0;
           await car.save();
-          console.log(
-            `✅ COMPLETED: available=${car.availableCount}, booked=${car.bookedCount}`
-          );
-        }
-
-        // ✅ CANCELLED/REJECTED - Mashina band emas
-        else if (
+        } else if (
           (newStatus === "cancelled" || newStatus === "rejected") &&
           (oldStatus === "pending" ||
             oldStatus === "confirmed" ||
@@ -133,24 +123,6 @@ export async function PUT(
           car.bookedCount = Math.max(0, car.bookedCount - 1);
           car.available = car.availableCount > 0;
           await car.save();
-          console.log(
-            `❌ CANCELLED: available=${car.availableCount}, booked=${car.bookedCount}`
-          );
-        }
-
-        // ✅ CONFIRMED/APPROVED - Mashina band (pending'dan kelsa)
-        else if (
-          (newStatus === "confirmed" || newStatus === "approved") &&
-          oldStatus === "pending"
-        ) {
-          // Allaqachon band qilingan (POST'da -1 qilingan)
-          console.log(`✓ CONFIRMED: countlar o'zgarmaydi (allaqachon band)`);
-        }
-
-        // ✅ NEED TO BE RETURNED - Hali qaytarilmagan
-        else if (newStatus === "need to be returned") {
-          // Hali qaytarilmagan, count o'zgarmaydi
-          console.log(`⏳ NEED TO BE RETURNED: kutilmoqda, count o'zgarmaydi`);
         }
       }
     }
@@ -186,7 +158,7 @@ export async function PUT(
 // 🔹 DELETE /api/bookings/[id]
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // async params
 ): Promise<NextResponse> {
   try {
     const user = await verifyToken(request);
@@ -201,7 +173,7 @@ export async function DELETE(
       );
     }
 
-    const { id } = context.params;
+    const { id } = await context.params; // await qo'shildi
     await connectDB();
 
     const booking = await Booking.findById(id).populate("car");
@@ -227,7 +199,6 @@ export async function DELETE(
       );
     }
 
-    // ✅ Pending/Confirmed/Approved → mashina qaytadi
     if (
       booking.status === "pending" ||
       booking.status === "confirmed" ||
@@ -239,9 +210,6 @@ export async function DELETE(
         car.bookedCount = Math.max(0, car.bookedCount - 1);
         car.available = car.availableCount > 0;
         await car.save();
-        console.log(
-          `🗑️ DELETE: Mashina qaytarildi - available=${car.availableCount}`
-        );
       }
     }
 
