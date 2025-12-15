@@ -10,6 +10,8 @@ interface RouteContext {
 }
 
 // POST - Verify Payment (Approve/Reject)
+// ...
+
 export async function POST(
   request: NextRequest,
   context: RouteContext
@@ -34,7 +36,9 @@ export async function POST(
       );
     }
 
-    const { id } = context.params;
+    // ✅ context.params endi Promise
+    const { id } = await context.params;
+
     const body = await request.json();
     const { approved, reason } = body;
 

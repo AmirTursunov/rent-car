@@ -1,13 +1,10 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true, // <--- Build paytida ESLint xatolarini e'tiborsiz qoldiradi
+    ignoreDuringBuilds: true,
   },
   typescript: {
-    ignoreBuildErrors: true, // ✅ Buildda TypeScript xatolarini e'tiborsiz qiladi
+    ignoreBuildErrors: true,
   },
-  // boshqa config opsiyalari ham bo‘lishi mumkin
-};
+} as any;
 
 export default nextConfig;
